@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory, Response
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime
 import hashlib
 import shutil  # for moving generated videos
@@ -10,6 +11,8 @@ import io
 import time
 import traceback
 import json
+import secrets
+import base64
 # ML / CV deps
 import numpy as np
 import cv2 as cv
@@ -52,6 +55,16 @@ print("✅ ML dependencies loaded successfully")
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)  # Enable CORS for all routes
 
+# ============ WEBSOCKET SETUP FOR CLASSROOM FEATURE ============
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# In-memory session storage for classrooms
+# Structure: { "ROOM_ID": { "teacher": sid, "students": [sid1, sid2, ...] } }
+active_classrooms = {}
+
+print("✅ WebSocket (SocketIO) initialized for classroom feature")
+# ============ END WEBSOCKET SETUP ============
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -84,57 +97,6 @@ try:
 except Exception as e:
     print(f"❌ Failed to load PKL model: {e}")
     model = None
-
-
-# Compatibility patch for scikit-learn versions: some versions expect
-# DecisionTreeClassifier to have `monotonic_cst` attribute. If the model
-# was trained with a different scikit-learn version, this attribute may be
-# missing and cause an AttributeError during predict. We set it to None
-# on all tree estimators if missing.
-def _patch_sklearn_monotonic(obj):
-    try:
-        # Local import to avoid import errors if sklearn is not available
-        from sklearn.pipeline import Pipeline
-        from sklearn.tree import DecisionTreeClassifier
-    except Exception:
-        return
-
-    def _patch(estimator):
-        # If estimator is a Pipeline, recurse into final step
-        try:
-            if isinstance(estimator, Pipeline):
-                if getattr(estimator, 'steps', None):
-                    _patch(estimator.steps[-1][1])
-                return
-        except Exception:
-            pass
-
-        # If estimator has many estimators (e.g., RandomForest), patch them
-        if hasattr(estimator, 'estimators_') and getattr(estimator, 'estimators_') is not None:
-            for e in getattr(estimator, 'estimators_'):
-                try:
-                    if isinstance(e, DecisionTreeClassifier) and not hasattr(e, 'monotonic_cst'):
-                        e.monotonic_cst = None
-                except Exception:
-                    # best-effort: keep going
-                    pass
-
-        # If the estimator itself is a DecisionTreeClassifier, ensure attribute
-        try:
-            if isinstance(estimator, DecisionTreeClassifier) and not hasattr(estimator, 'monotonic_cst'):
-                estimator.monotonic_cst = None
-        except Exception:
-            pass
-
-    _patch(obj)
-
-# Apply compatibility patch to loaded models
-if model is not None:
-    try:
-        _patch_sklearn_monotonic(model)
-        print("🔧 Applied sklearn monotonic compatibility patch to gesture model")
-    except Exception:
-        print("⚠️ Failed to apply sklearn monotonic compatibility patch to gesture model")
 
 # Letter Model Loading
 LETTER_MODEL_FILE = "./pretrained/letter_model.pkl"
@@ -277,6 +239,36 @@ def learn():
         return render_template('learn_new.html')
     except Exception:
         return render_template('learn.html')
+
+
+# ============ CLASSROOM ROUTES ============
+
+@app.route('/classroom')
+def classroom_home():
+    """Home page to choose role (teacher or student)"""
+    return render_template('classroom_home.html')
+
+
+@app.route('/teacher')
+def teacher_dashboard():
+    """Teacher dashboard - speech input interface"""
+    room_id = request.args.get('room_id') or secrets.token_hex(3).upper()
+    logger.info(f"🎤 Teacher dashboard opened with room_id: {room_id}")
+    return render_template('teacher.html', room_id=room_id)
+
+
+@app.route('/student')
+def student_dashboard():
+    """Student dashboard - video display interface"""
+    room_id = request.args.get('room_id')
+    if not room_id:
+        logger.warning("❌ Student tried to join without room_id")
+        return "Room ID required. Use /student?room_id=ABC123", 400
+    
+    logger.info(f"👁️ Student dashboard opened for room_id: {room_id}")
+    return render_template('student.html', room_id=room_id)
+
+# ============ END CLASSROOM ROUTES ============
 
 
 # Replace the infer_frame function:
@@ -757,6 +749,50 @@ def _text_to_gloss_tokens(text: str) -> list[str]:
     return filtered or candidates
 
 
+# ============ CLASSROOM FEATURE HELPER FUNCTIONS ============
+
+def transcribe_audio(audio_base64: str) -> str:
+    """Convert base64-encoded audio data to text using OpenAI Whisper API.
+    
+    Args:
+        audio_base64: Base64-encoded audio data (webm, wav, mp3, etc.)
+    
+    Returns:
+        Transcribed text string
+    
+    Raises:
+        Exception: If OpenAI API call fails or audio is invalid
+    """
+    try:
+        logger.info("🎤 Transcribing audio via OpenAI Whisper...")
+        
+        # Decode base64 audio
+        audio_bytes = base64.b64decode(audio_base64)
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.name = "audio.webm"
+        
+        # Call OpenAI Whisper API
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file,
+            language="en"
+        )
+        
+        text = transcript.text.strip()
+        logger.info(f"✅ Transcription complete: '{text}'")
+        return text
+        
+    except Exception as e:
+        logger.error(f"❌ Transcription error: {e}")
+        raise
+
+
+# ============ END CLASSROOM HELPER FUNCTIONS ============
+
+
 def compose_video_from_gloss(gloss_tokens):
     """Concatenate per-token mp4 clips from videos/<token>.mp4 into a single mp4 in outputs.
 
@@ -1062,10 +1098,164 @@ def reverse_translate_transcript():
         logger.error('/reverse-translate-transcript error: %s\n%s', str(e), tb)
         return jsonify({'error': str(e), 'trace': tb}), 500
     
+# ============ WEBSOCKET EVENT HANDLERS FOR CLASSROOM ============
+
+@socketio.on('teacher_join')
+def handle_teacher_join(data):
+    """Teacher connects to a classroom room"""
+    try:
+        room_id = data.get('room_id')
+        if not room_id:
+            emit('error', {'message': 'room_id required'})
+            return
+        
+        if room_id not in active_classrooms:
+            active_classrooms[room_id] = {'teacher': None, 'students': []}
+        
+        active_classrooms[room_id]['teacher'] = request.sid
+        join_room(room_id)
+        
+        logger.info(f"✅ Teacher joined room {room_id}")
+        emit('teacher_connected', {
+            'room_id': room_id,
+            'message': 'Connected. Waiting for students...'
+        })
+    except Exception as e:
+        logger.error(f"❌ teacher_join error: {e}")
+        emit('error', {'message': str(e)})
+
+
+@socketio.on('student_join')
+def handle_student_join(data):
+    """Student connects to a classroom room"""
+    try:
+        room_id = data.get('room_id')
+        if not room_id:
+            emit('error', {'message': 'room_id required'})
+            return
+        
+        if room_id not in active_classrooms:
+            active_classrooms[room_id] = {'teacher': None, 'students': []}
+        
+        active_classrooms[room_id]['students'].append(request.sid)
+        join_room(room_id)
+        
+        student_count = len(active_classrooms[room_id]['students'])
+        logger.info(f"✅ Student joined room {room_id} (Total: {student_count})")
+        
+        emit('student_connected', {
+            'room_id': room_id,
+            'message': 'Connected to classroom'
+        })
+        
+        # Notify teacher of new student
+        if active_classrooms[room_id]['teacher']:
+            emit('student_joined', {
+                'count': student_count,
+                'message': f'Student {student_count} joined'
+            }, room=active_classrooms[room_id]['teacher'])
+    except Exception as e:
+        logger.error(f"❌ student_join error: {e}")
+        emit('error', {'message': str(e)})
+
+
+@socketio.on('send_speech')
+def handle_send_speech(data):
+    """Process teacher's speech and broadcast video to students"""
+    try:
+        room_id = data.get('room_id')
+        audio_base64 = data.get('audio')
+        
+        if not room_id or not audio_base64:
+            emit('error', {'message': 'room_id and audio required'})
+            return
+        
+        logger.info(f"🎤 Processing speech from room {room_id}")
+        
+        # STEP 1: Transcribe audio
+        try:
+            text = transcribe_audio(audio_base64)
+            logger.info(f"📝 Transcribed: {text}")
+        except Exception as e:
+            logger.error(f"❌ Transcription failed: {e}")
+            emit('error', {'message': f'Transcription failed: {str(e)}'})
+            return
+        
+        # STEP 2: Convert text to gloss tokens
+        try:
+            from revtrans import sentence_to_gloss_tokens as _sentence_to_gloss_tokens
+            available_tokens = _list_available_video_tokens()
+            gloss_tokens = _sentence_to_gloss_tokens(text, available_tokens=available_tokens)
+            logger.info(f"🤖 Gloss tokens: {gloss_tokens}")
+        except Exception as e:
+            logger.warning(f"⚠️ LLM conversion failed, using fallback: {e}")
+            gloss_tokens = _text_to_gloss_tokens(text)
+            logger.info(f"🤖 Fallback tokens: {gloss_tokens}")
+        
+        # STEP 3: Compose video from gloss tokens
+        try:
+            fname, meta = compose_video_from_gloss(gloss_tokens)
+            video_url = f"/outputs/{fname}"
+            logger.info(f"🎬 Video composed: {video_url}")
+        except Exception as e:
+            logger.error(f"❌ Video composition failed: {e}")
+            emit('error', {'message': f'Video composition failed: {str(e)}'})
+            return
+        
+        # STEP 4: Send caption to teacher
+        emit('caption_received', {
+            'text': text,
+            'timestamp': datetime.utcnow().isoformat(),
+            'tokens': gloss_tokens
+        }, room=active_classrooms[room_id].get('teacher'))
+        
+        # STEP 5: Broadcast video to all students
+        emit('video_broadcast', {
+            'video_url': video_url,
+            'duration': meta.get('duration_seconds', meta.get('frames', 0) / meta.get('fps', 25)),
+            'tokens': gloss_tokens,
+            'text': text
+        }, room=room_id)
+        
+        logger.info(f"✅ Broadcast complete to {len(active_classrooms[room_id]['students'])} students")
+        
+    except Exception as e:
+        logger.error(f"❌ send_speech error: {e}\n{traceback.format_exc()}")
+        emit('error', {'message': str(e)})
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Clean up when user disconnects"""
+    try:
+        logger.info(f"✗ Client disconnected: {request.sid}")
+        
+        for room_id, session in active_classrooms.items():
+            # If teacher left
+            if session.get('teacher') == request.sid:
+                logger.info(f"  Teacher left room {room_id}")
+                active_classrooms[room_id]['teacher'] = None
+            
+            # If student left
+            if request.sid in session.get('students', []):
+                session['students'].remove(request.sid)
+                logger.info(f"  Student left room {room_id} ({len(session['students'])} remaining)")
+                
+                # Notify teacher
+                if session.get('teacher'):
+                    emit('student_left', {
+                        'count': len(session['students'])
+                    }, room=session['teacher'])
+    except Exception as e:
+        logger.error(f"❌ disconnect error: {e}")
+
+
+# ============ END WEBSOCKET EVENT HANDLERS ============
+
 # Replace the main block:
 
 if __name__ == '__main__':
-    print("🚀 Starting Sign Language Translator...")
+    print("🚀 Starting Sign Language Translator with Classroom Feature...")
     print("📁 Loading PKL model...")
 
     if model is not None:
@@ -1073,6 +1263,10 @@ if __name__ == '__main__':
     else:
         print("⚠️ PKL Model failed to load. Endpoints will return 503 for inference.")
 
-    print("🌐 Starting Flask server...")
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
-
+    print("🌐 Starting Flask + SocketIO server...")
+    print("📌 Classroom Features:")
+    print("   - Teacher: http://localhost:5000/teacher")
+    print("   - Student: http://localhost:5000/student?room_id=ABC123")
+    print("   - Home: http://localhost:5000/classroom")
+    
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
