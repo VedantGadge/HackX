@@ -695,15 +695,32 @@ def serve_output_file(filename: str):
 
 
 def _list_available_video_tokens() -> list[str]:
-    """Return available token basenames from the videos directory (without extension)."""
+    """Return available token basenames from WLASL mapper and local videos directory.
+    
+    Prioritizes WLASL glosses (2000+) but includes local videos as fallback.
+    """
+    tokens = set()
+    
+    # Try to get WLASL glosses
+    try:
+        from dynamic_video_fetcher import WLASLVideoFetcher
+        fetcher = WLASLVideoFetcher()
+        # Get all glosses from the index
+        wlasl_glosses = list(fetcher.gloss_index.keys())
+        tokens.update(wlasl_glosses)
+        logger.info(f"✅ Loaded {len(wlasl_glosses)} glosses from WLASL mapper")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not load WLASL glosses: {e}")
+    
+    # Also add local videos as fallback
     base_vid_dir = os.path.join(os.path.dirname(__file__), 'videos')
-    if not os.path.isdir(base_vid_dir):
-        return []
-    toks = []
-    for name in os.listdir(base_vid_dir):
-        if name.lower().endswith('.mp4'):
-            toks.append(os.path.splitext(name)[0].lower())
-    return sorted(set(toks))
+    if os.path.isdir(base_vid_dir):
+        for name in os.listdir(base_vid_dir):
+            if name.lower().endswith('.mp4'):
+                tokens.add(os.path.splitext(name)[0].lower())
+        logger.info(f"✅ Added {len([n for n in os.listdir(base_vid_dir) if n.endswith('.mp4')])} local videos")
+    
+    return sorted(tokens)
 
 
 def _text_to_gloss_tokens(text: str) -> list[str]:
@@ -794,28 +811,53 @@ def transcribe_audio(audio_base64: str) -> str:
 
 
 def compose_video_from_gloss(gloss_tokens):
-    """Concatenate per-token mp4 clips from videos/<token>.mp4 into a single mp4 in outputs.
-
+    """Concatenate per-token mp4 clips from WLASL JSON mapper into a single mp4 in outputs.
+    
+    Uses the dynamic_video_fetcher to fetch videos on-demand from WLASL dataset.
     Returns (filename, meta) where filename is the saved file name under OUTPUT_DIR.
     """
-    # Map tokens to available video files
-    base_vid_dir = os.path.join(os.path.dirname(__file__), 'videos')
-    if not os.path.exists(base_vid_dir):
-        raise FileNotFoundError(f"Videos directory not found: {base_vid_dir}")
+    # Try to use WLASL fetcher first
+    try:
+        from dynamic_video_fetcher import WLASLVideoFetcher
+        fetcher = WLASLVideoFetcher()
+        logger.info("✅ Using WLASL fetcher to load videos")
+    except Exception as e:
+        logger.warning(f"⚠️ WLASL fetcher unavailable: {e}, falling back to local videos")
+        fetcher = None
     
     files = []
     missing = []
+    
+    # Fetch videos using WLASL mapper or fallback to local
     for t in gloss_tokens:
         name = str(t).strip().lower()
         if not name:
             continue
-        cand = os.path.join(base_vid_dir, f"{name}.mp4")
-        if os.path.exists(cand):
-            files.append(cand)
-            logger.info(f"Found video for token '{name}': {cand}")
-        else:
-            missing.append(name)
-            logger.warning(f"Missing video for token '{name}': {cand}")
+        
+        try:
+            if fetcher:
+                # Try WLASL fetcher first
+                logger.info(f"📹 Fetching video from WLASL for token: '{name}'")
+                videos = fetcher.get_video_paths_for_gloss(name, source="aslbrick", max_videos=1)
+                if videos:
+                    files.extend(videos)
+                    logger.info(f"✅ Found {len(videos)} video(s) from WLASL for '{name}'")
+                else:
+                    logger.warning(f"⚠️ No WLASL video found for '{name}', checking local...")
+                    raise Exception("No WLASL video found")
+            else:
+                raise Exception("Fetcher not available")
+        except Exception as e:
+            # Fallback to local videos
+            logger.info(f"🔄 Falling back to local video for '{name}': {e}")
+            base_vid_dir = os.path.join(os.path.dirname(__file__), 'videos')
+            cand = os.path.join(base_vid_dir, f"{name}.mp4")
+            if os.path.exists(cand):
+                files.append(cand)
+                logger.info(f"✅ Found local video for '{name}': {cand}")
+            else:
+                missing.append(name)
+                logger.warning(f"❌ No video found for '{name}' (neither WLASL nor local)")
 
     if not files:
         available_tokens = _list_available_video_tokens()
