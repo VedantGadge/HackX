@@ -23,6 +23,7 @@ import traceback
 import joblib
 import mediapipe as mp
 import math
+import difflib
 
 
 mp_drawing = mp.solutions.drawing_utils
@@ -79,6 +80,68 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Simple in-memory cache mapping text->deterministic output file for reverse translation segments
 _REVERSE_SEGMENT_CACHE: dict[str, str] = {}
+
+# Simple token normalization/mapping helpers to improve coverage
+def _stem_token(w: str) -> str:
+    w = w.lower().strip()
+    for suf in ("ing", "ed", "es", "s"):
+        if len(w) > 3 and w.endswith(suf):
+            return w[: -len(suf)]
+    return w
+
+def _map_tokens_to_available(tokens: list[str], available: list[str]):
+    """Return (mapped:list[str], missing:list[str]). Try simple stemming and fallbacks.
+
+    Mapping rules:
+      - If token present, keep
+      - Else try stemmed form
+      - Else try common synonyms (limited, editable)
+      - Else mark as missing (caller may skip or display)
+    """
+    avail = set([a.lower() for a in available])
+    mapped = []
+    missing = []
+
+    # lightweight, user-editable synonyms (extend as you add videos)
+    SYN = {
+        'those': 'they',
+        'these': 'they',
+        'them': 'they',
+        'people': 'they',
+        'achieve': 'success',
+        'achievement': 'success',
+        'great': 'good',
+        'nice': 'good',
+        'things': 'thing',
+        'stuff': 'thing',
+        'life': 'live',
+        'today': 'day',
+        'exam': 'test',
+        'always': 'always',
+    }
+
+    for t in tokens:
+        t0 = (t or '').lower().strip()
+        if not t0:
+            continue
+        if t0 in avail:
+            mapped.append(t0)
+            continue
+        t1 = _stem_token(t0)
+        if t1 in avail:
+            mapped.append(t1)
+            continue
+        t2 = SYN.get(t0)
+        if t2 and t2 in avail:
+            mapped.append(t2)
+            continue
+        # Try fuzzy match as last resort
+        close = difflib.get_close_matches(t0, list(avail), n=1, cutoff=0.86)
+        if close:
+            mapped.append(close[0])
+            continue
+        missing.append(t0)
+    return mapped, missing
 
 #model loading
 #mp_hands = mp.solutions.hands
@@ -1059,6 +1122,22 @@ def reverse_translate_video():
         tb = traceback.format_exc()
         logger.error('/reverse-translate-video error: %s\n%s', str(e), tb)
         return jsonify({'error': str(e), 'trace': tb}), 500
+
+
+@app.route('/token-video/<token>', methods=['GET'])
+def serve_token_video(token: str):
+    """Serve a single token clip videos/<token>.mp4 if exists."""
+    base_vid_dir = os.path.join(os.path.dirname(__file__), 'videos')
+    safe_token = os.path.basename(token).lower()
+    fname = f"{safe_token}.mp4"
+    full_path = os.path.join(base_vid_dir, fname)
+    if not os.path.isfile(full_path):
+        return jsonify({'error': 'Token clip not found', 'token': safe_token}), 404
+    try:
+        # Use send_from_directory to avoid path traversal
+        return send_from_directory(base_vid_dir, fname, as_attachment=False)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/reverse-translate-segment', methods=['POST'])

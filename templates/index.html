@@ -118,7 +118,7 @@
                 <!-- Left: YouTube Player & Reverse Video -->
                 <div class="demo-left" style="flex:1 1 420px; min-width: 360px;">
                     <div class="camera-section" style="background: #111827; border-radius: 16px; padding: 16px; border: 1px solid #1f2937;">
-                        <div class="camera-header" style="display:flex; justify-content: space-between; align-items:center;">
+                        <div class="camera-header" style="display:flex; justify-content: space-between; align-items:center; gap: 8px; flex-wrap: wrap;">
                             <h3 style="margin:0; color:#93c5fd;">
                                 <i class="fab fa-youtube" style="margin-right:8px; color:#ef4444;"></i>
                                 YouTube Player
@@ -148,10 +148,16 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="video-container" style="border-radius: 12px; overflow: hidden; background: #0b1220; display:flex; justify-content:center; align-items:center; min-height: 260px; border:1px dashed #374151; margin-top:12px;">
-                            <video id="ytReverseVideo" controls playsinline muted style="width:100%; max-width: 620px; background:#000; border-radius:8px;"></video>
+                        <div class="yt-stage" style="position:relative; margin-top:12px; aspect-ratio:16/9; background:#000; border-radius:8px; overflow:hidden;">
+                            <div id="ytPlayer" style="width:100%; height:100%;"></div>
+                            <!-- Bottom-right overlay with reverse translation video and captions -->
+                            <div id="reverseOverlay" style="position:absolute; right:12px; bottom:12px; width: 30%; max-width: 300px; aspect-ratio:16/9; border-radius:10px; overflow:hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); background:#000;">
+                                <video id="ytReverseVideo" playsinline muted controls style="width:100%; height:100%; display:block; background:#000;"></video>
+                                <div id="ytReverseCaption" style="position:absolute; left:0; right:0; bottom:0; padding:6px 8px; background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.0)); color:#fff; font-size: 12px; line-height:1.3; font-weight:600;">
+                                    Waiting for tokens…
+                                </div>
+                            </div>
                         </div>
-                        <p style="margin-top:8px; color:#9ca3af; font-size: 13px;">Reverse video clips will switch as the YouTube video's time enters each transcript segment.</p>
                     </div>
                 </div>
 
@@ -496,7 +502,8 @@
             const reverseEl = document.getElementById('ytReverseVideo');
             if (!segs.length) { alert('Provide a valid transcript JSON array'); return; }
             if (!ytPlayerInstance) { alert('YouTube player not ready'); return; }
-            startReverseSyncForYouTube(ytPlayerInstance, reverseEl, segs);
+            // Use queue-based mode for smoother, word-driven playback
+            startReverseSyncForYouTubeQueueMode(ytPlayerInstance, reverseEl, segs);
         }
         function formatTranscriptJSON(){
             try {

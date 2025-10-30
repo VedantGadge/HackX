@@ -1,301 +1,393 @@
-# ✅ Project Setup Checklist - Ready to Implement
+# ✅ SETUP CHECKLIST - Extension with Debug Mode
 
-## Current Status
+## Prerequisites Checklist
 
-### ✅ What You Already Have
+- [ ] **Python 3.8+** installed
+  - Check: Open PowerShell, type `python --version`
+  
+- [ ] **Chrome/Edge browser** (version 100+)
+  - Check: Type `chrome://version` in address bar
+  
+- [ ] **Backend files** present
+  - Location: `D:\Final_Intellify\Intellify-Final-Project\Intellify-Final-Project\app.py`
+  - Check: File exists and opens
+  
+- [ ] **Videos folder** exists
+  - Location: `D:\Final_Intellify\Intellify-Final-Project\Intellify-Final-Project\videos\`
+  - Check: Folder exists (can be empty initially for testing)
 
-- **OpenAI API Key**: ✅ Configured in `.env`
-  - Used for: GPT-4o-mini (text → gloss conversion)
-  - Used for: Whisper (speech-to-text)
-
-- **Project Structure**: ✅ Complete
-  - Flask app with existing routes
-  - Video library (800+ clips)
-  - ML models (gesture, letter recognition)
-  - HTML templates
-
-- **Core Functionality**: ✅ Working
-  - `revtrans.py` → Text to gloss conversion
-  - `app.py` → Video composition from gloss tokens
-  - `/reverse-translate-video` endpoint → Already functional
-
----
-
-## Pre-Implementation Checklist
-
-### 1. Dependencies Check
-
-**Currently installed (verify):**
-```bash
-pip list | grep -i "flask\|torch\|opencv\|mediapipe"
-```
-
-**Will be added:**
-```bash
-flask-socketio==5.3.4      # For WebSocket support
-python-socketio==5.10.0    # WebSocket server
-python-engineio==4.7.1     # WebSocket transport layer
-```
-
-### 2. Environment Variables
-
-**Verify `.env` has:**
-```
-✅ OPENAI_API_KEY=sk-proj-...
-```
-
-**If using local Whisper (optional later):**
-```
-# Don't add yet, only if you want local speech recognition
-WHISPER_MODEL=base  # Options: tiny, base, small, medium, large
-```
-
-### 3. Project Structure
-
-**Current:**
-```
-✅ app.py (1028 lines)
-✅ revtrans.py (166 lines)
-✅ model.py (141 lines)
-✅ templates/ (4 HTML files)
-✅ static/ (CSS + JS)
-✅ videos/ (800+ MP4 clips)
-✅ pretrained/ (ML models)
-```
-
-**Will add:**
-```
-📝 templates/classroom_home.html   (NEW - 20 lines)
-📝 templates/teacher.html          (NEW - 150 lines)
-📝 templates/student.html          (NEW - 120 lines)
-📝 static/classroom.css            (NEW - 200 lines)
-📝 requirements.txt                (MODIFY - add 3 packages)
-```
+- [ ] **Extension files** present
+  - Location: `D:\Final_Intellify\Intellify-Final-Project\Intellify-Final-Project\chrome_extension\`
+  - Check: Folder contains manifest.json, content.js, popup.html, etc.
 
 ---
 
-## Ready to Start Implementation? ✅
+## Setup Steps Checklist
 
-### Implementation Phases (Simplified)
+### Phase 1: Start Backend
 
-**Phase 1: Add WebSocket Support (5-10 min)**
-```python
-# In app.py, add imports
-from flask_socketio import SocketIO, emit, join_room, leave_room
+- [ ] Open PowerShell or Terminal
+  
+- [ ] Navigate to project folder
+  ```powershell
+  cd D:\Final_Intellify\Intellify-Final-Project\Intellify-Final-Project
+  ```
+  
+- [ ] Start the backend server
+  ```powershell
+  python app.py
+  ```
+  
+- [ ] Verify it's running
+  - Check: Terminal shows `Running on http://127.0.0.1:5000`
+  - Alternative test:
+    ```powershell
+    curl http://127.0.0.1:5000/health
+    ```
+  - Should return: `{"status":"ok"}`
 
-# Initialize SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-# In-memory session storage
-active_classrooms = {}
-```
-
-**Phase 2: Create Routes (5 min)**
-```python
-@app.route('/classroom')
-@app.route('/teacher')
-@app.route('/student')
-```
-
-**Phase 3: Add Speech Helper (3-5 min)**
-```python
-def transcribe_audio(audio_base64):
-    """Convert base64 audio to text using Whisper"""
-    # Your implementation here
-```
-
-**Phase 4: WebSocket Event Handlers (10-15 min)**
-```python
-@socketio.on('teacher_join')
-@socketio.on('student_join')
-@socketio.on('send_speech')
-@socketio.on('disconnect')
-```
-
-**Phase 5-8: HTML/CSS/Testing (45 min)**
-- Create UI templates
-- Add styling
-- Test end-to-end
+✅ **Backend Status**: Running
 
 ---
 
-## What Gets REUSED (No Changes)
+### Phase 2: Load Extension
 
-✅ Your existing functions will be reused as-is:
+- [ ] Open Chrome/Edge browser
+  
+- [ ] Go to extension page
+  - Type in address bar: `chrome://extensions`
+  
+- [ ] Enable Developer Mode
+  - Look for toggle in top-right corner
+  - Click to turn ON (should be blue)
+  
+- [ ] Click "Load unpacked"
+  - Button should appear next to other buttons
+  
+- [ ] Select extension folder
+  - Navigate to: `D:\Final_Intellify\Intellify-Final-Project\Intellify-Final-Project\chrome_extension`
+  - Click "Select Folder"
+  
+- [ ] Verify extension loaded
+  - Should see "Intellify" in the extension list
+  - Should show as "enabled" with a colored icon
+  - No red error messages
 
-| Function | File | Usage |
-|----------|------|-------|
-| `sentence_to_gloss_tokens()` | revtrans.py | Convert text → gloss |
-| `compose_video_from_gloss()` | app.py | Stitch gloss tokens → MP4 |
-| `_list_available_video_tokens()` | app.py | Get available clips |
-| Video library | /videos/ | MP4 source clips |
-| ML models | /pretrained/ | (For frame/letter detection) |
-
----
-
-## What Gets ADDED (New Code)
-
-✅ Only these new components:
-
-| Component | Type | Lines |
-|-----------|------|-------|
-| SocketIO initialization | Python | 3-5 |
-| `/classroom` route | Python | 5 |
-| `/teacher` route | Python | 3 |
-| `/student` route | Python | 3 |
-| `transcribe_audio()` | Python | 20-30 |
-| WebSocket event handlers | Python | 80-100 |
-| teacher.html | HTML/JS | 150 |
-| student.html | HTML/JS | 120 |
-| classroom_home.html | HTML | 20 |
-| classroom.css | CSS | 200 |
-| **TOTAL** | | **~510-580 lines** |
+✅ **Extension Status**: Loaded
 
 ---
 
-## Breaking Changes
+### Phase 3: Test on YouTube
 
-### ✅ NONE
+- [ ] Go to YouTube.com
+  ```
+  https://www.youtube.com
+  ```
+  
+- [ ] Find a video with captions
+  - Look for videos with CC icon
+  - Or manually enable auto-generated captions
+  
+- [ ] Open DevTools Console
+  - Press: **F12**
+  - Click: **Console** tab
+  - You should see: `✅ Intellify content script loaded`
+  
+- [ ] Enable captions on video
+  - Look for **CC** button in video player
+  - Click to enable captions
+  - Captions should appear at bottom of video
+  
+- [ ] Start Caption Capture
+  - Click Intellify icon (top-right of browser)
+  - Click: **"Start Caption Capture"** button
+  - Check console, should see:
+    ```
+    🎬 Starting caption capture...
+    📊 Found 1 caption container(s)
+    ✅ Caption capture started
+    ```
 
-**All existing routes stay exactly the same:**
-- `/` (index)
-- `/learn` (learn page)
-- `/reverse-translate-video` (existing API)
-- `/reverse-translate-segment`
-- `/infer-frame`
-- `/infer-letter`
-- `/model-status`
-- `/outputs/<filename>`
+- [ ] Play the video
+  - Let video play with captions
+  - Watch console for:
+    ```
+    📝 New caption detected: "..."
+    ```
 
-**No changes to:**
-- Database (already using in-memory only)
-- ML models
-- Video library structure
-- OpenAI integration
-- Existing HTML/CSS/JS
+- [ ] Verify backend communication
+  - When caption appears, console should show:
+    ```
+    🌐 TOKENIZATION REQUEST
+    Backend URL: http://127.0.0.1:5000
+    ⏱️ Response time: XXms
+    ✅ TOKENIZATION SUCCESS
+    ```
+
+- [ ] Check for available videos
+  - Console should show:
+    ```
+    Available in videos_: 45 tokens
+    ```
+    (Or however many .mp4 files you have)
+
+- [ ] Watch for video playback
+  - Console should show:
+    ```
+    ▶️ PLAYING VIDEO CLIP
+    Token: [word]
+    ```
+
+✅ **YouTube Testing**: Complete
 
 ---
 
-## Quick Start Command Sequence
+## Debug Verification Checklist
 
-When ready, here's what we'll execute:
+### Console Logs Should Show
 
-```bash
-# 1. Install new packages
-pip install flask-socketio python-socketio python-engineio
+- [ ] `✅ Intellify content script loaded` on page load
+  
+- [ ] `🎬 Starting caption capture...` when you click Start
+  
+- [ ] `📊 Found 1 caption container(s)` with at least 1
+  
+- [ ] `📝 New caption detected:` when captions change
+  
+- [ ] `🌐 TOKENIZATION REQUEST` when sending to backend
+  
+- [ ] `✅ TOKENIZATION SUCCESS` when backend responds
+  
+- [ ] `   Mapped tokens: [...]` showing at least some tokens
+  
+- [ ] `▶️ PLAYING VIDEO CLIP` showing video is playing
+  
+- [ ] `✅ Finished playing:` when each video completes
 
-# 2. Create new HTML files
-# (I'll provide templates)
+### If Something's Missing
 
-# 3. Create CSS file
-# (I'll provide styles)
+| Missing Log | Problem | Fix |
+|---|---|---|
+| No console logs at all | Extension not loaded | Reload extension |
+| `Found 0 container` | Captions not detected | Enable CC button |
+| `NETWORK ERROR` | Backend not running | Start `python app.py` |
+| `Mapped tokens: []` | No videos available | Add .mp4 to videos/ |
+| No playback logs | Video element issue | Check DevTools errors |
 
-# 4. Modify app.py
-# (I'll provide exact code additions)
+---
 
-# 5. Test locally
+## Troubleshooting Checklist
+
+### If Extension Won't Load
+
+- [ ] Check manifest.json exists and is valid
+  - File: `chrome_extension/manifest.json`
+  - Should start with: `{"manifest_version": 3,`
+  
+- [ ] Verify no icon errors
+  - Should NOT have `"icons"` section (or it should be valid)
+  
+- [ ] Reload extension
+  - Go to `chrome://extensions`
+  - Click refresh button (🔄) on Intellify
+  
+- [ ] Hard refresh YouTube
+  - Press: **Ctrl+Shift+R**
+
+### If Captions Not Detected
+
+- [ ] Enable CC on YouTube
+  - Look for CC button in video player
+  - Click to turn captions ON
+  
+- [ ] Verify console shows caption attempts
+  - Should show: `🔍 Trying alternative selectors...`
+  
+- [ ] Try different YouTube video
+  - Some videos may not have properly formatted captions
+  
+- [ ] Check YouTube page structure
+  - Right-click on caption → Inspect
+  - Look for class names containing "caption"
+  
+- [ ] If issue persists
+  - Share the console output
+  - Include: Which YouTube video, exact error messages
+
+### If Backend Not Responding
+
+- [ ] Verify backend is running
+  - Check terminal shows: `Running on http://127.0.0.1:5000`
+  
+- [ ] Test backend directly
+  ```powershell
+  curl http://127.0.0.1:5000/health
+  ```
+  Should return: `{"status":"ok"}`
+  
+- [ ] Check backend URL in extension
+  - Click Intellify icon
+  - Verify URL is: `http://127.0.0.1:5000`
+  
+- [ ] Check for Python errors
+  - Look in terminal for error messages
+  - Should say `* Running on...` not error traces
+  
+- [ ] Restart backend
+  ```powershell
+  # Stop with Ctrl+C
+  # Then:
+  python app.py
+  ```
+
+### If Videos Not Playing
+
+- [ ] Verify videos folder has files
+  ```powershell
+  Get-ChildItem D:\Final_Intellify\Intellify-Final-Project\Intellify-Final-Project\videos -Filter "*.mp4"
+  ```
+  Should list .mp4 files
+  
+- [ ] Check console shows mapped tokens
+  - Should show: `Mapped tokens: [we, go, college]` (or similar)
+  - NOT: `Mapped tokens: []`
+  
+- [ ] If empty, add some test videos
+  - Create simple .mp4 files
+  - Name them: `hello.mp4`, `world.mp4`, etc.
+  
+- [ ] Restart backend after adding videos
+  - Backend scans videos/ on startup
+  
+- [ ] Check Network tab for video requests
+  - F12 → Network
+  - Look for `/token-video/` requests
+  - Should show 200 or 206 status
+
+---
+
+## Performance Checklist
+
+- [ ] Backend starts within 3 seconds
+- [ ] Extension loads without errors
+- [ ] Console logs appear within 100ms of caption changes
+- [ ] Backend responds within 500ms
+- [ ] Videos start playing within 500ms of being queued
+- [ ] Overall latency < 1 second from caption to video playback
+
+---
+
+## Final Verification Checklist
+
+Before considering setup complete:
+
+- [ ] Extension loads without errors
+- [ ] Console shows content script loaded
+- [ ] YouTube captions are detected
+- [ ] Backend responds to requests
+- [ ] At least one video plays in overlay
+- [ ] No JavaScript errors in console
+- [ ] Network requests show 200 status codes
+- [ ] All debug logs are visible and readable
+
+---
+
+## Success Criteria
+
+✅ You're done when you see:
+
+1. Extension icon in Chrome toolbar
+2. Overlay appears on YouTube video (bottom-right)
+3. Console shows debug logs when captions appear
+4. Backend responds with token list
+5. Videos play sequentially in the overlay
+6. All logs show successful operation (✅ not ❌)
+
+---
+
+## Documentation to Read
+
+After setup, review these for details:
+
+1. **Quick Reference**: `QUICK_DEBUG_REFERENCE.md`
+   - One page overview
+   - Common errors
+   - Quick fixes
+
+2. **Debug Guide**: `chrome_extension/DEBUG_GUIDE.md`
+   - Detailed troubleshooting
+   - Log interpretation
+   - Advanced debugging
+
+3. **Full Setup**: `EXTENSION_SETUP.md`
+   - Complete guide
+   - All options
+   - Advanced configuration
+
+---
+
+## Command Reference
+
+### Start Backend
+```powershell
+cd D:\Final_Intellify\Intellify-Final-Project\Intellify-Final-Project
 python app.py
-# Open 3 browser windows to test
+```
 
-# 6. Deploy
-git add .
-git commit -m "Add classroom feature with WebSocket support"
-git push origin master
+### Check Backend Health
+```powershell
+curl http://127.0.0.1:5000/health
+```
+
+### List Videos
+```powershell
+Get-ChildItem videos -Filter "*.mp4"
+```
+
+### Reload Extension
+```
+chrome://extensions → Find Intellify → Click 🔄
+```
+
+### Hard Refresh YouTube
+```
+Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)
+```
+
+### Clear Cache (if needed)
+```
+F12 → Application → Cache Storage → Clear All
 ```
 
 ---
 
-## API Cost Estimate (Monthly)
+## Getting Help
 
-**Using your OpenAI API key:**
+If something doesn't work:
 
-| Service | Usage | Cost |
-|---------|-------|------|
-| GPT-4o-mini (text→gloss) | ~1 call per utterance | ~$0.001-0.005 per utterance |
-| Whisper (speech→text) | ~1 call per utterance | ~$0.02 per minute of audio |
-| | 100 utterances/hour | ~$2-5/hour of classroom |
-
-**Example:** 1-hour classroom = ~$5-10 in API costs
-
-(This is very cheap for the functionality!)
-
----
-
-## Questions to Confirm
-
-Before I start implementing Phase 1:
-
-1. **Ready to proceed?** ✅
-2. **Use OpenAI Whisper?** (current plan - $0.02/min)
-   - OR local Whisper? (free, offline)
-3. **Match existing dark theme?** (for UI)
-4. **Want to deploy immediately after?** (Heroku/AWS/local)
+1. **Check console logs** (F12 → Console)
+2. **Read the debug log** (tells you what's happening)
+3. **Follow troubleshooting section** above
+4. **If still stuck, gather**:
+   - Console log output (copy/paste)
+   - Screenshots showing the issue
+   - Steps you took to reproduce
+   - Backend terminal output
 
 ---
 
-## Next Steps
+## Version Info
 
-### Immediate (Today)
-- ✅ Review the 4 planning documents:
-  - `PLAN_SUMMARY.md` (executive overview)
-  - `CLASSROOM_IMPLEMENTATION_PLAN.md` (detailed spec)
-  - `CLASSROOM_PLAN_VISUAL_SUMMARY.md` (visual diagrams)
-  - `CLASSROOM_QUICK_REFERENCE.md` (checklist)
-
-### Phase 1 (When Ready - 5-10 min)
-- Modify `app.py` to add SocketIO
-- Install 3 new packages
-- Create in-memory session storage
-
-### Phase 2-4 (10-30 min)
-- Add routes and WebSocket handlers
-- Add speech transcription helper
-- Core logic complete
-
-### Phase 5-8 (30-45 min)
-- Create HTML templates
-- Add CSS styling
-- Test and debug
-
-### Deployment (10-20 min)
-- Push to GitHub
-- Deploy to cloud
-- Test with real users
+- **Extension Version**: 1.0.0
+- **Status**: ✅ Ready with Enhanced Debugging
+- **Last Updated**: October 30, 2025
+- **Chrome Support**: Version 100+
+- **Python Support**: 3.8+
 
 ---
 
-## Support Resources
+**You're all set!** 🚀
 
-All 3 planning documents include:
-- ✅ Step-by-step implementation guide
-- ✅ Code snippets (copy-paste ready)
-- ✅ Architecture diagrams
-- ✅ Testing checklist
-- ✅ Debugging guide
-- ✅ Performance metrics
-- ✅ Future enhancement ideas
+Go through this checklist and let me know if you hit any issues. The debug logs will help identify exactly where the problem is.
 
----
-
-## Final Summary
-
-| Aspect | Status |
-|--------|--------|
-| **OpenAI Key** | ✅ Ready |
-| **Project Structure** | ✅ Ready |
-| **Existing Code** | ✅ Reusable |
-| **New Code** | ✅ Designed |
-| **Testing Plan** | ✅ Created |
-| **Documentation** | ✅ Complete |
-| **Ready to Start** | ✅ YES |
-
----
-
-## 🚀 Ready to Begin Phase 1?
-
-**Answer these:**
-1. Should I proceed with implementation?
-2. Local Whisper or OpenAI Whisper for speech-to-text?
-3. Any questions about the plan?
-
-Once approved, we can have Phase 1 (WebSocket setup) done in under 10 minutes! ⚡
+Good luck! 🤟

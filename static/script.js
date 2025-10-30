@@ -1232,6 +1232,210 @@ function stopReverseSync() {
     ytReverse.timer = null;
 }
 
+// =============================
+// Queue-based Reverse Playback
+// =============================
+// Instead of swapping per-segment videos, maintain a token clip queue and play
+// clips back-to-back while the YouTube video advances.
+
+const revQueue = {
+    queue: [],            // Array<{ token: string, url: string }>
+    playing: false,
+    videoEl: null,
+    pendingSegments: new Set(), // track segment indices already enqueued
+    currentToken: null,
+    processedTokens: new Set(),
+    recentTokens: new Map(), // token -> last enqueue ts
+};
+
+const REV_RECENT_TOKEN_TTL_MS = 3000; // suppress same token re-enqueue within 3s
+
+function initRevQueue(videoEl) {
+    revQueue.videoEl = videoEl;
+    if (!revQueue.videoEl._revQueueWired) {
+        revQueue.videoEl.addEventListener('ended', playNextFromQueue);
+        revQueue.videoEl._revQueueWired = true;
+    }
+    updateReverseCaption();
+}
+
+function enqueueTokens(tokens) {
+    if (!Array.isArray(tokens) || !tokens.length) return;
+    const now = Date.now();
+    // clean recentTokens
+    for (const [tok, ts] of revQueue.recentTokens.entries()) {
+        if (now - ts > REV_RECENT_TOKEN_TTL_MS) revQueue.recentTokens.delete(tok);
+    }
+    tokens.forEach(t => {
+        const token = String(t || '').trim().toLowerCase();
+        if (!token) return;
+        // skip if already processed, currently playing, in recent TTL, or already in queue
+        if (revQueue.processedTokens.has(token)) return;
+        if (revQueue.currentToken && token === revQueue.currentToken) return;
+        const lastTs = revQueue.recentTokens.get(token);
+        if (lastTs && (now - lastTs) < REV_RECENT_TOKEN_TTL_MS) return;
+        if (revQueue.queue.some(x => x.token === token)) return;
+
+        revQueue.queue.push({ token, url: `/token-video/${encodeURIComponent(token)}` });
+        revQueue.recentTokens.set(token, now);
+    });
+    pumpQueue();
+}
+
+function pumpQueue() {
+    if (revQueue.playing) return;
+    playNextFromQueue();
+}
+
+function playNextFromQueue() {
+    if (!revQueue.videoEl) return;
+    // mark previous as processed when moving to next
+    if (revQueue.currentToken) {
+        revQueue.processedTokens.add(revQueue.currentToken);
+    }
+    const next = revQueue.queue.shift();
+    if (!next) {
+        revQueue.playing = false;
+        revQueue.currentToken = null;
+        updateReverseCaption();
+        return;
+    }
+    revQueue.playing = true;
+    revQueue.currentToken = next.token;
+    revQueue.videoEl.src = next.url;
+    revQueue.videoEl.load();
+    // If YT is paused, keep paused; else play
+    const isYTPlaying = ytReverse && ytReverse.state === 'running';
+    if (isYTPlaying) {
+        revQueue.videoEl.play().catch(() => {});
+    }
+    updateReverseCaption();
+}
+
+function clearReverseQueue() {
+    revQueue.queue = [];
+    revQueue.pendingSegments.clear();
+    revQueue.playing = false;
+    revQueue.currentToken = null;
+    revQueue.processedTokens.clear();
+    revQueue.recentTokens.clear();
+    if (revQueue.videoEl) {
+        revQueue.videoEl.pause();
+        revQueue.videoEl.removeAttribute('src');
+        revQueue.videoEl.load();
+    }
+    updateReverseCaption();
+}
+
+function updateReverseCaption() {
+    const el = document.getElementById('ytReverseCaption');
+    if (!el) return;
+    const now = revQueue.currentToken ? revQueue.currentToken.toUpperCase() : null;
+    const nextTokens = revQueue.queue.slice(0, 3).map(x => x.token.toUpperCase());
+    if (!now && nextTokens.length === 0) {
+        el.textContent = 'Waiting for tokens…';
+        return;
+    }
+    const nextText = nextTokens.length ? `Next: ${nextTokens.join(' · ')}` : '';
+    el.textContent = now ? `Now: ${now}${nextText ? ' | ' + nextText : ''}` : nextText;
+}
+
+async function startReverseSyncForYouTubeQueueMode(player, reverseVideoEl, transcriptSegments) {
+    ytReverse.player = player;
+    ytReverse.reverseVideoEl = reverseVideoEl;
+    ytReverse.segments = normalizeTranscriptSegments(transcriptSegments);
+    ytReverse.state = 'running';
+    initRevQueue(reverseVideoEl);
+    revQueue.pendingSegments.clear();
+
+    // Immediately enqueue ALL segments in order so the queue covers the full transcript
+    ;(async () => {
+        for (let i = 0; i < ytReverse.segments.length; i++) {
+            const seg = ytReverse.segments[i];
+            if (!seg || !seg.text) continue;
+            try {
+                const resp = await fetch('/tokenize-text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: seg.text })
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    enqueueTokens(data.tokens || []);
+                    if (Array.isArray(data.missing) && data.missing.length) {
+                        console.warn('Missing tokens (no clips):', data.missing);
+                        try { showTemporaryMessage(`Missing tokens: ${data.missing.join(', ')}`, 'warning'); } catch (_) {}
+                    }
+                    revQueue.pendingSegments.add(i); // mark as processed to avoid duplicate enqueue in poll loop
+                }
+            } catch (_) { /* ignore */ }
+        }
+    })();
+
+    if (ytReverse.timer) clearInterval(ytReverse.timer);
+    ytReverse.timer = setInterval(async () => {
+        if (!ytReverse.player) return;
+        const t = typeof ytReverse.player.getCurrentTime === 'function'
+            ? ytReverse.player.getCurrentTime()
+            : (ytReverse.player.currentTime || 0);
+
+        // Enqueue tokens for any segments whose start time has passed and not yet enqueued
+        for (let i = 0; i < ytReverse.segments.length; i++) {
+            const seg = ytReverse.segments[i];
+            if (!seg) continue;
+            if (seg.start <= t + 0.1 && !revQueue.pendingSegments.has(i)) {
+                revQueue.pendingSegments.add(i);
+                // Tokenize via backend to respect available tokens/LLM mapping
+                try {
+                    const resp = await fetch('/tokenize-text', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: seg.text })
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        enqueueTokens(data.tokens || []);
+                        // Optional: lightweight visibility for missing tokens
+                        if (Array.isArray(data.missing) && data.missing.length) {
+                            console.warn('Missing tokens (no clips):', data.missing);
+                            try { showTemporaryMessage(`Missing tokens: ${data.missing.join(', ')}`, 'warning'); } catch (_) {}
+                        }
+                    } else {
+                        console.warn('tokenize-text failed:', resp.status);
+                    }
+                } catch (_) { /* ignore transient errors */ }
+            }
+        }
+
+        // Prefetch future segments' tokens (fire-and-forget)
+        const leadEnd = t + ytReverse.prefetchWindowSec;
+        for (let j = 0; j < ytReverse.segments.length; j++) {
+            const seg = ytReverse.segments[j];
+            if (!seg) continue;
+            if (seg.start > leadEnd) break;
+            // No-op here because tokenization is fast; optional future caching
+        }
+    }, ytReverse.pollMs);
+
+    // Reflect YT state changes if available
+    if (player && typeof player.addEventListener === 'function') {
+        try {
+            player.addEventListener('onStateChange', (e) => {
+                if (e && typeof e.data === 'number') {
+                    if (e.data === 1) {
+                        ytReverse.state = 'running';
+                        if (revQueue.videoEl && revQueue.playing) revQueue.videoEl.play().catch(() => {});
+                        pumpQueue();
+                    } else if (e.data === 2) {
+                        ytReverse.state = 'paused';
+                        if (revQueue.videoEl) revQueue.videoEl.pause();
+                    }
+                }
+            });
+        } catch (_) { /* non-critical */ }
+    }
+}
+
 // Add this after your existing startRealtimeInfer function
 async function startRealtimeLetterInfer(videoEl) {
     // Similar to gesture inference but for letters
