@@ -1051,28 +1051,47 @@ async function composeReverseVideo() {
             body: JSON.stringify({ text: sentence })
         });
         console.log('📡 Response status:', resp.status);
+        
         if (!resp.ok) {
+            // Try to parse error as JSON
             const err = await resp.json().catch(() => ({}));
             console.error('❌ Server error:', err);
             const more = err.hint ? `\nHint: ${err.hint}` : '';
             const prev = err.available_tokens_preview ? `\nAvailable (sample): ${err.available_tokens_preview.join(', ')}` : '';
             throw new Error((err.error || `Server error: ${resp.status}`) + more + prev);
         }
-        const data = await resp.json();
-        console.log('✅ Response data:', data);
-        const url = data.video_url; // Use the direct URL returned by the backend
-        console.log('🎥 Video URL:', url);
+        
+        // Backend returns video file directly as blob (same as /token-video endpoint)
+        const videoBlob = await resp.blob();
+        console.log('✅ Received video blob:', videoBlob.size, 'bytes');
+        
+        // Create object URL from blob
+        const url = URL.createObjectURL(videoBlob);
+        console.log('🎥 Created blob URL:', url);
         
         // Hide placeholder and show video
         const placeholder = document.getElementById('videoPlaceholder');
-        if (placeholder) placeholder.style.display = 'none';
+        if (placeholder) {
+            placeholder.style.display = 'none';
+            console.log('✅ Placeholder hidden');
+        }
         
+        // Revoke previous blob URL to prevent memory leaks
+        if (videoEl.src && videoEl.src.startsWith('blob:')) {
+            URL.revokeObjectURL(videoEl.src);
+            console.log('🗑️ Revoked previous blob URL');
+        }
+        
+        // Set new blob URL
         videoEl.src = url;
         videoEl.style.display = 'block';
-        console.log('🔄 Loading video...');
+        console.log('✅ Video element updated with blob URL');
         videoEl.load();
+        
+        // Try to play
         videoEl.play().catch((playErr) => {
             console.error('▶️ Play error:', playErr);
+            showTemporaryMessage('Video ready - click play button', 'info');
         });
         showTemporaryMessage('Reverse video ready', 'success');
     } catch (e) {
