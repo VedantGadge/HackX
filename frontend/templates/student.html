@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intellify - Student Learning</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // API Configuration - Production
+        window.API_BASE_URL = 'https://lamaq-signlink-hackx.hf.space';
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #0b1220 100%);
+            color: #e5e7eb;
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            padding: 30px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 2px solid #10b981;
+            padding: 25px 30px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.15);
+        }
+
+        .header-title h1 {
+            font-size: 1.8em;
+            background: linear-gradient(135deg, #10b981, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-title p {
+            color: #94a3b8;
+            font-size: 0.9em;
+            margin-top: 2px;
+        }
+
+        .connection-info {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn-leave {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-leave:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 30px;
+            transition: all 0.3s;
+        }
+
+        .section:hover {
+            border-color: #10b981;
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.1);
+        }
+
+        .section h2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            color: #10b981;
+            font-size: 1.4em;
+        }
+
+        .video-player-container {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            aspect-ratio: 16 / 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .video-placeholder {
+            text-align: center;
+            color: #64748b;
+        }
+
+        .video-placeholder i {
+            font-size: 3.5em;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-control {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-control:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-control:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            background: rgba(2, 8, 23, 0.6);
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .stat-label {
+            font-size: 0.75em;
+            color: #94a3b8;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .transcript-container {
+            background: rgba(2, 8, 23, 0.6);
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 20px;
+            height: 350px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .transcript-item {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+            border-left: 3px solid #10b981;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .transcript-text {
+            color: #e5e7eb;
+            margin-bottom: 4px;
+        }
+
+        .transcript-time {
+            font-size: 0.75em;
+            color: #64748b;
+        }
+
+        .transcript-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-transcript {
+            flex: 1;
+            padding: 10px 12px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid #334155;
+            color: #60a5fa;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+
+        .btn-transcript:hover {
+            border-color: #60a5fa;
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .notification {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+            border-left: 4px solid #10b981;
+            padding: 16px 20px;
+            border-radius: 8px;
+            color: #10b981;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideInRight 0.4s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(2, 8, 23, 0.4);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard { padding: 15px; }
+            .header { flex-direction: column; align-items: flex-start; }
+            .stats-row { grid-template-columns: 1fr; }
+            .transcript-container { height: 250px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">
+                <h1>👨‍🎓 Learning Session</h1>
+                <p>Watch real-time sign language translation</p>
+            </div>
+            <div class="connection-info">
+                <div class="connection-status">
+                    <span class="status-dot"></span>
+                    <span id="connectionStatus">Connected</span>
+                </div>
+                <button class="btn-leave" onclick="leaveClass()">
+                    <i class="fas fa-door-open"></i> Leave
+                </button>
+            </div>
+        </div>
+
+        <!-- Video Player Section -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-video"></i>
+                Sign Language Video
+            </h2>
+
+            <div class="video-player-container">
+                <video id="videoPlayer" style="display: none;"></video>
+                <div class="video-placeholder" id="videoPlaceholder">
+                    <i class="fas fa-play-circle"></i>
+                    <p>Waiting for teacher to speak...</p>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn-control" id="playBtn" onclick="playVideo()" disabled>
+                    <i class="fas fa-play"></i> Play
+                </button>
+                <button class="btn-control" id="pauseBtn" onclick="pauseVideo()" disabled>
+                    <i class="fas fa-pause"></i> Pause
+                </button>
+                <button class="btn-control" id="replayBtn" onclick="replayVideo()" disabled>
+                    <i class="fas fa-redo"></i> Replay
+                </button>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-box">
+                    <div class="stat-value" id="videosReceived">0</div>
+                    <div class="stat-label">Videos</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="totalWords">0</div>
+                    <div class="stat-label">Words</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="sessionTime">0:00</div>
+                    <div class="stat-label">Time</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transcript Section -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-book-open"></i>
+                Transcript
+            </h2>
+
+            <div class="transcript-container" id="transcriptContainer">
+                <div style="text-align: center; color: #64748b; padding: 40px 20px;">
+                    <i class="fas fa-feather" style="font-size: 2em; opacity: 0.5; margin-bottom: 10px; display: block;"></i>
+                    <p>Transcript will appear here</p>
+                </div>
+            </div>
+
+            <div class="transcript-controls">
+                <button class="btn-transcript" onclick="downloadTranscript()">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                <button class="btn-transcript" onclick="clearTranscript()">
+                    <i class="fas fa-trash"></i> Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = window.API_BASE_URL || 'http://localhost:8000';
+        const WS_BASE_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://');
+        
+        const ROOM_ID = new URLSearchParams(window.location.search).get('room_id') || 'Unknown';
+        let socket = null;
+
+        let transcriptItems = [];
+        let videosCount = 0;
+        let totalWords = 0;
+        let sessionStartTime = Date.now();
+
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoPlaceholder = document.getElementById('videoPlaceholder');
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            socket = new WebSocket(`${WS_BASE_URL}/ws/classroom/${ROOM_ID}/student`);
+            
+            socket.onopen = () => {
+                console.log('✓ Connected to classroom');
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                document.querySelector('.status-dot').style.background = '#10b981';
+                startSessionTimer();
+            };
+            
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Received:', data);
+                
+                if (data.type === 'video_broadcast') {
+                    // Set video source with full URL
+                    videoPlayer.src = `${API_BASE_URL}${data.video_url}`;
+                    videoPlayer.style.display = 'block';
+                    videoPlaceholder.style.display = 'none';
+
+                    document.getElementById('playBtn').disabled = false;
+                    document.getElementById('pauseBtn').disabled = false;
+                    document.getElementById('replayBtn').disabled = false;
+
+                    videoPlayer.autoplay = true;
+                    videoPlayer.play().catch(() => {});
+
+                    videosCount++;
+                    document.getElementById('videosReceived').textContent = videosCount;
+
+                    const text = data.tokens ? data.tokens.join(' ') : (data.text || 'Video');
+                    const words = data.tokens ? data.tokens.length : 0;
+                    totalWords += words;
+                    document.getElementById('totalWords').textContent = totalWords;
+
+                    addTranscriptItem(text);
+                    showNotification(`Received: "${text}"`);
+                }
+            };
+            
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            socket.onclose = () => {
+                console.log('Disconnected from classroom');
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                document.querySelector('.status-dot').style.background = '#ef4444';
+            };
+        }
+        
+        connectWebSocket();
+
+        function playVideo() {
+            videoPlayer.play().catch(() => {});
+        }
+
+        function pauseVideo() {
+            videoPlayer.pause();
+        }
+
+        function replayVideo() {
+            videoPlayer.currentTime = 0;
+            videoPlayer.play().catch(() => {});
+        }
+
+        function addTranscriptItem(text) {
+            const container = document.getElementById('transcriptContainer');
+            if (container.children.length === 1 && container.textContent.includes('Transcript will')) {
+                container.innerHTML = '';
+            }
+
+            const time = new Date().toLocaleTimeString();
+            const item = { text, time };
+            transcriptItems.push(item);
+
+            const el = document.createElement('div');
+            el.className = 'transcript-item';
+            el.innerHTML = `
+                <div class="transcript-text">"${text}"</div>
+                <div class="transcript-time">${time}</div>
+            `;
+            container.insertBefore(el, container.firstChild);
+
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function downloadTranscript() {
+            if (transcriptItems.length === 0) {
+                showNotification('No transcript to download');
+                return;
+            }
+
+            const text = transcriptItems.map(item => `[${item.time}] ${item.text}`).join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transcript_${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showNotification('Transcript downloaded');
+        }
+
+        function clearTranscript() {
+            if (confirm('Clear all transcript items?')) {
+                transcriptItems = [];
+                document.getElementById('transcriptContainer').innerHTML = `
+                    <div style="text-align: center; color: #64748b; padding: 40px 20px;">
+                        <i class="fas fa-feather" style="font-size: 2em; opacity: 0.5; margin-bottom: 10px; display: block;"></i>
+                        <p>Transcript will appear here</p>
+                    </div>
+                `;
+            }
+        }
+
+        function startSessionTimer() {
+            setInterval(() => {
+                const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('sessionTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.4s ease';
+                setTimeout(() => notification.remove(), 400);
+            }, 3000);
+        }
+
+        function leaveClass() {
+            if (confirm('Leave classroom?')) {
+                if (socket) {
+                    socket.close();
+                }
+                window.location.href = '/classroom';
+            }
+        }
+    </script>
+</body>
+</html>

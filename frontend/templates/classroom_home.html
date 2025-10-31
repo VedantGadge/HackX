@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intellify - Real-time Sign Language Learning</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #0b1220 50%, #1a1f35 100%);
+            color: #e5e7eb;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: float 20s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 40px 20px;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 70px;
+            animation: slideInDown 0.8s ease;
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            font-size: 4em;
+            margin-bottom: 15px;
+            display: inline-block;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        h1 {
+            font-size: 3.2em;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #60a5fa 0%, #93c5fd 50%, #a5f3fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #93c5fd;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            font-size: 0.9em;
+            color: #6b7280;
+            font-weight: 400;
+        }
+
+        .roles-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 50px;
+            animation: slideInUp 0.8s ease 0.2s both;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .roles-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        .role-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 2px solid #334155;
+            border-radius: 20px;
+            padding: 50px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .role-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(148, 163, 247, 0.1), transparent);
+            transition: left 0.6s;
+        }
+
+        .role-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .role-card:hover {
+            border-color: #60a5fa;
+            transform: translateY(-12px);
+            box-shadow: 0 20px 50px rgba(59, 130, 246, 0.2), 0 0 40px rgba(96, 165, 250, 0.1);
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
+        }
+
+        .role-card:hover::before {
+            left: 100%;
+        }
+
+        .role-card:hover::after {
+            opacity: 1;
+        }
+
+        .role-icon {
+            font-size: 4em;
+            display: block;
+            margin-bottom: 20px;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .role-card:hover .role-icon {
+            transform: scale(1.2) rotate(10deg);
+        }
+
+        h2 {
+            font-size: 1.9em;
+            margin-bottom: 10px;
+            color: #e5e7eb;
+            font-weight: 700;
+        }
+
+        .role-card p {
+            color: #94a3b8;
+            font-size: 1em;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        .form-container {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 35px;
+            margin-top: 30px;
+            display: none;
+            animation: slideDown 0.4s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-container.active {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-container h3 {
+            margin-bottom: 25px;
+            color: #60a5fa;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(2, 8, 23, 0.4);
+            border: 1.5px solid #334155;
+            border-radius: 10px;
+            color: #e5e7eb;
+            font-size: 1em;
+            margin-bottom: 18px;
+            transition: all 0.3s;
+            font-weight: 400;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #60a5fa;
+            background: rgba(2, 8, 23, 0.6);
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+
+        input::placeholder {
+            color: #64748b;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(37, 99, 235, 0.4);
+        }
+
+        button:active {
+            transform: translateY(-1px);
+        }
+
+        .info-text {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9em;
+            margin-top: 40px;
+            animation: fadeIn 0.8s ease 0.5s both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .info-text i {
+            margin-right: 8px;
+        }
+
+        .error {
+            color: #ef4444;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            display: none;
+            padding: 10px 12px;
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            border-radius: 4px;
+            animation: shake 0.3s ease;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.2em; }
+            .subtitle { font-size: 1em; }
+            .logo { font-size: 3em; }
+            .role-card { padding: 35px 20px; }
+            .form-container { padding: 25px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">🧠✨</div>
+            <h1>Intellify</h1>
+            <p class="subtitle">Real-time Sign Language Learning</p>
+            <p class="tagline">Transform speech into visual sign language instantly</p>
+        </div>
+
+        <!-- Role Selection -->
+        <div class="roles-container">
+            <!-- Teacher -->
+            <div class="role-card" onclick="selectRole('teacher')">
+                <span class="role-icon">🎤</span>
+                <h2>Teacher</h2>
+                <p>Create and lead interactive classes</p>
+            </div>
+
+            <!-- Student -->
+            <div class="role-card" onclick="selectRole('student')">
+                <span class="role-icon">👨‍🎓</span>
+                <h2>Student</h2>
+                <p>Join and learn with real-time translation</p>
+            </div>
+        </div>
+
+        <!-- Teacher Form -->
+        <div id="teacherForm" class="form-container">
+            <h3><i class="fas fa-chalkboard-user"></i> Start Your Class</h3>
+            <div class="error" id="teacherError"></div>
+            <input type="text" id="teacherName" placeholder="Enter your name" onkeypress="if(event.key==='Enter') startTeaching()">
+            <button onclick="startTeaching()">
+                <i class="fas fa-play"></i> Start Teaching
+            </button>
+        </div>
+
+        <!-- Student Form -->
+        <div id="studentForm" class="form-container">
+            <h3><i class="fas fa-door-open"></i> Join a Class</h3>
+            <div class="error" id="studentError"></div>
+            <input type="text" id="roomCode" placeholder="Enter room code" maxlength="6" onkeypress="if(event.key==='Enter') joinClass()" style="text-transform: uppercase; letter-spacing: 2px;">
+            <button onclick="joinClass()">
+                <i class="fas fa-sign-in-alt"></i> Join Class
+            </button>
+        </div>
+
+        <!-- Footer Info -->
+        <p class="info-text">
+            <i class="fas fa-lock"></i>Secure  •  <i class="fas fa-bolt"></i>Real-time  •  <i class="fas fa-mobile-alt"></i>Works Everywhere
+        </p>
+    </div>
+
+    <script>
+        function selectRole(role) {
+            document.getElementById('teacherForm').classList.remove('active');
+            document.getElementById('studentForm').classList.remove('active');
+
+            if (role === 'teacher') {
+                document.getElementById('teacherForm').classList.add('active');
+                document.getElementById('teacherName').focus();
+            } else {
+                document.getElementById('studentForm').classList.add('active');
+                document.getElementById('roomCode').focus();
+            }
+        }
+
+        function startTeaching() {
+            const name = document.getElementById('teacherName').value.trim();
+            const errorEl = document.getElementById('teacherError');
+
+            if (!name) {
+                errorEl.textContent = '✕ Please enter your name';
+                errorEl.classList.add('show');
+                return;
+            }
+
+            errorEl.classList.remove('show');
+            const roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+            window.location.href = `/teacher?room_id=${roomCode}`;
+        }
+
+        function joinClass() {
+            const code = document.getElementById('roomCode').value.trim().toUpperCase();
+            const errorEl = document.getElementById('studentError');
+
+            if (!code || code.length !== 6) {
+                errorEl.textContent = '✕ Room code must be 6 characters';
+                errorEl.classList.add('show');
+                return;
+            }
+
+            errorEl.classList.remove('show');
+            window.location.href = `/student?room_id=${code}`;
+        }
+    </script>
+</body>
+</html>

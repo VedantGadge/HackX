@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 300px;
+            padding: 12px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #0b1220, #1f2937);
+            color: #e5e7eb;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 16px;
+            color: #93c5fd;
+        }
+        .section {
+            margin-bottom: 12px;
+        }
+        .section-title {
+            font-weight: 600;
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            background: #0b1220;
+            color: #e5e7eb;
+            font-size: 13px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+        button {
+            width: 100%;
+            padding: 8px;
+            background: #2563eb;
+            border: 1px solid #1d4ed8;
+            border-radius: 6px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        button.secondary {
+            background: #1f2937;
+            border-color: #374151;
+            color: #e5e7eb;
+        }
+        button.secondary:hover {
+            background: #374151;
+        }
+        .info {
+            font-size: 12px;
+            color: #9ca3af;
+            line-height: 1.4;
+            background: rgba(0,0,0,0.3);
+            padding: 8px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <i style="font-size: 18px;">🤟</i>
+        <h2>Intellify</h2>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Backend URL</div>
+        <input type="text" id="backendUrl" placeholder="http://127.0.0.1:5000" value="http://127.0.0.1:5000">
+    </div>
+
+    <div class="section">
+        <button id="toggleBtn">Start Caption Capture</button>
+    </div>
+
+    <div class="section">
+        <button class="secondary" id="clearBtn">Clear Queue</button>
+    </div>
+
+    <div class="info">
+        <strong>✨ Tip:</strong> Enable captions on YouTube (CC button), then click "Start Caption Capture" to begin translation.
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

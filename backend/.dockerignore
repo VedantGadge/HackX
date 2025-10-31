@@ -1,0 +1,37 @@
+# .dockerignore for optimized builds
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Don't copy outputs (they're generated)
+outputs/*
+
+# Keep only essential files
+!outputs/.gitkeep

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intellify - Teacher Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // API Configuration - Production
+        window.API_BASE_URL = 'https://lamaq-signlink-hackx.hf.space';
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #0b1220 100%);
+            color: #e5e7eb;
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 2px solid #60a5fa;
+            padding: 30px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.15);
+        }
+
+        .header-title h1 {
+            font-size: 2em;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, #60a5fa, #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-title p {
+            color: #94a3b8;
+            font-size: 0.9em;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 15px;
+        }
+
+        .stat {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid #334155;
+            padding: 12px 18px;
+            border-radius: 10px;
+        }
+
+        .stat-label { color: #94a3b8; font-size: 0.85em; }
+        .stat-value { color: #10b981; font-weight: 700; font-size: 1.2em; }
+
+        .btn-end {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-end:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 30px;
+            transition: all 0.3s;
+        }
+
+        .section:hover {
+            border-color: #60a5fa;
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.1);
+        }
+
+        .section h2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            color: #60a5fa;
+            font-size: 1.4em;
+        }
+
+        .mic-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .btn-mic {
+            padding: 18px 30px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border: 2px solid #60a5fa;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .btn-mic:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-mic.recording {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-color: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        }
+
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            border-radius: 8px;
+            color: #ef4444;
+            font-weight: 600;
+            display: none;
+        }
+
+        .recording-dot {
+            width: 10px;
+            height: 10px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .captions-box {
+            background: rgba(2, 8, 23, 0.6);
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 120px;
+            margin-bottom: 20px;
+        }
+
+        .caption-current {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 3px solid #60a5fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .caption-text {
+            font-size: 1.1em;
+            color: #e5e7eb;
+            margin-bottom: 8px;
+        }
+
+        .caption-time {
+            font-size: 0.85em;
+            color: #94a3b8;
+        }
+
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            background: rgba(16, 185, 129, 0.05);
+            border-left: 2px solid #10b981;
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .status-item {
+            background: rgba(2, 8, 23, 0.6);
+            border: 1px solid #334155;
+            padding: 16px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-label { color: #94a3b8; font-weight: 500; }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-ready {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .badge-processing {
+            background: rgba(245, 158, 22, 0.1);
+            color: #f59e16;
+        }
+
+        .badge-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(2, 8, 23, 0.4);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard { padding: 15px; }
+            .header { flex-direction: column; align-items: flex-start; }
+            .section { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">
+                <h1>🎓 Classroom Session</h1>
+                <p>Real-time sign language broadcasting</p>
+            </div>
+            <div class="header-stats">
+                <div class="stat">
+                    <div class="stat-label">ROOM CODE</div>
+                    <div class="stat-value" id="roomCodeDisplay">ABC123</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">STUDENTS</div>
+                    <div class="stat-value" id="studentCount">0</div>
+                </div>
+            </div>
+            <button class="btn-end" onclick="endSession()">
+                <i class="fas fa-power-off"></i> End Session
+            </button>
+        </div>
+
+        <!-- Microphone Section -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-microphone"></i>
+                Recording
+            </h2>
+
+            <div class="mic-container">
+                <button id="micButton" class="btn-mic" onclick="toggleMicrophone()">
+                    <i class="fas fa-microphone"></i>
+                    Start Recording
+                </button>
+
+                <div id="recordingIndicator" class="recording-indicator">
+                    <span class="recording-dot"></span>
+                    <span>Recording audio...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Captions Section -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-closed-captioning"></i>
+                Live Captions
+            </h2>
+
+            <div class="captions-box">
+                <div id="captionDisplay" style="text-align: center; color: #94a3b8;">
+                    <p>Start recording to see captions...</p>
+                </div>
+            </div>
+
+            <div class="history-list" id="captionHistory"></div>
+        </div>
+
+        <!-- Status Section -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-chart-bar"></i>
+                Processing Status
+            </h2>
+
+            <div class="status-grid">
+                <div class="status-item">
+                    <span class="status-label">Transcription</span>
+                    <span class="status-badge badge-ready" id="status-stt">✓ Ready</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Gloss Conversion</span>
+                    <span class="status-badge badge-ready" id="status-gloss">✓ Ready</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Video Generation</span>
+                    <span class="status-badge badge-ready" id="status-video">✓ Ready</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Broadcasting</span>
+                    <span class="status-badge badge-ready" id="status-broadcast">✓ Ready</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = window.API_BASE_URL || 'http://localhost:8000';
+        const WS_BASE_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://');
+        
+        const ROOM_ID = new URLSearchParams(window.location.search).get('room_id') || 
+                        Math.random().toString(36).substr(2, 6).toUpperCase();
+        
+        let socket = null;
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        document.getElementById('roomCodeDisplay').textContent = ROOM_ID;
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            socket = new WebSocket(`${WS_BASE_URL}/ws/classroom/${ROOM_ID}/teacher`);
+            
+            socket.onopen = () => {
+                console.log('✓ Connected to classroom');
+            };
+            
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Received:', data);
+                
+                if (data.type === 'student_joined') {
+                    document.getElementById('studentCount').textContent = data.count;
+                } else if (data.type === 'caption_received') {
+                    updateCaption(data.text, data.timestamp);
+                } else if (data.type === 'error') {
+                    alert('Error: ' + data.message);
+                    updateStatus('broadcast', '✗ Error', 'ready');
+                }
+            };
+            
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            socket.onclose = () => {
+                console.log('Disconnected from classroom');
+            };
+        }
+        
+        connectWebSocket();
+
+        async function toggleMicrophone() {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+
+                        reader.onload = (e) => {
+                            const audioBase64 = e.target.result.split(',')[1];
+                            updateStatus('stt', 'Processing...', 'processing');
+                            socket.send(JSON.stringify({
+                                type: 'send_speech',
+                                room_id: ROOM_ID,
+                                audio: audioBase64
+                            }));
+                        };
+
+                        reader.readAsDataURL(audioBlob);
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    document.getElementById('micButton').classList.add('recording');
+                    document.getElementById('micButton').innerHTML = '<i class="fas fa-stop"></i> Stop Recording';
+                    document.getElementById('recordingIndicator').style.display = 'flex';
+                } catch (error) {
+                    alert('Microphone access denied');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                document.getElementById('micButton').classList.remove('recording');
+                document.getElementById('micButton').innerHTML = '<i class="fas fa-microphone"></i> Start Recording';
+                document.getElementById('recordingIndicator').style.display = 'none';
+            }
+        }
+
+        function updateCaption(text, timestamp) {
+            const time = new Date(timestamp).toLocaleTimeString();
+            document.getElementById('captionDisplay').innerHTML = `
+                <div class="caption-current">
+                    <div class="caption-text">"${text}"</div>
+                    <div class="caption-time">${time}</div>
+                </div>
+            `;
+
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            historyItem.textContent = `📌 "${text}" - ${time}`;
+            document.getElementById('captionHistory').insertBefore(historyItem, document.getElementById('captionHistory').firstChild);
+
+            updateStatus('stt', '✓ Done', 'ready');
+            updateStatus('gloss', '✓ Done', 'ready');
+            updateStatus('video', '✓ Done', 'ready');
+            updateStatus('broadcast', '✓ Done', 'ready');
+        }
+
+        function updateStatus(component, text, status) {
+            const el = document.getElementById(`status-${component}`);
+            if (el) {
+                el.textContent = text;
+                el.className = `status-badge badge-${status}`;
+            }
+        }
+
+        function endSession() {
+            if (confirm('End classroom session? All students will be disconnected.')) {
+                if (socket) {
+                    socket.close();
+                }
+                window.location.href = '/classroom';
+            }
+        }
+    </script>
+</body>
+</html>

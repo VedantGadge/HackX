@@ -15,7 +15,7 @@ let currentlyPlayingToken = null; // Track token currently playing to avoid re-q
 const recentTokens = new Map();   // token -> lastEnqueueTimestamp (ms)
 const RECENT_TOKEN_TTL_MS = 3000; // time window to suppress re-enqueueing same token
 
-let backendUrl = 'http://127.0.0.1:5000';
+let backendUrl = 'https://lamaq-signlink-hackx.hf.space';
 
 // Load backend URL from storage
 chrome.storage.sync.get('backendUrl', (result) => {
@@ -409,16 +409,12 @@ async function processCaption(text) {
         console.log(`   Missing (no video): [${data.missing?.join(', ') || 'none'}]`);
         console.log(`   Available in videos/: ${data.available?.length || 0} tokens`);
 
-        // Enqueue the mapped tokens
-        if (Array.isArray(data.tokens)) {
-            if (data.tokens.length === 0) {
-                console.warn('⚠️ No tokens could be mapped to available videos');
-            } else {
-                enqueueTokens(data.tokens);
-            }
+        // Enqueue the mapped tokens with batch pre-fetching
+        if (Array.isArray(data.tokens) && data.tokens.length > 0) {
+            console.log('🚀 Batch pre-fetching videos...');
+            await enqueueTokensBatch(data.tokens);
         } else {
-            console.error('❌ Response missing "tokens" field');
-            console.error('Response object:', data);
+            console.warn('⚠️ No tokens could be mapped to available videos');
         }
 
         console.log(`${'='.repeat(60)}\n`);
@@ -432,7 +428,102 @@ async function processCaption(text) {
     }
 }
 
-// Add tokens to the queue
+// Batch pre-fetch videos for all tokens (optimized)
+async function enqueueTokensBatch(tokens) {
+    const now = Date.now();
+    
+    // Filter tokens that haven't been processed or queued recently
+    const tokensToFetch = tokens.filter(token => {
+        const tokenLower = String(token).toLowerCase();
+        
+        // Skip if already processed
+        if (processedTokens.has(tokenLower)) {
+            console.log(`⏭️ Token "${tokenLower}" already played, skipping...`);
+            return false;
+        }
+        
+        // Skip if currently playing
+        if (currentlyPlayingToken && tokenLower === currentlyPlayingToken) {
+            return false;
+        }
+        
+        // Skip if seen recently
+        const lastTs = recentTokens.get(tokenLower);
+        if (lastTs && (now - lastTs) < RECENT_TOKEN_TTL_MS) {
+            console.log(`⏭️ Token "${tokenLower}" seen recently, skipping...`);
+            return false;
+        }
+        
+        // Skip if already in queue
+        const isInQueue = videoQueue.some(item => item.token === tokenLower);
+        if (isInQueue) {
+            console.log(`⏭️ Token "${tokenLower}" already queued, skipping...`);
+            return false;
+        }
+        
+        return true;
+    });
+    
+    if (tokensToFetch.length === 0) {
+        console.log('⏭️ All tokens already processed/queued, skipping batch fetch');
+        return;
+    }
+    
+    try {
+        console.log(`📦 Batch fetching ${tokensToFetch.length} videos...`);
+        const batchStart = performance.now();
+        
+        // Batch API call to pre-cache videos on backend
+        const resp = await fetch(`${backendUrl}/batch-token-videos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokens: tokensToFetch })
+        });
+        
+        const batchDuration = (performance.now() - batchStart).toFixed(0);
+        
+        if (!resp.ok) {
+            console.error(`❌ Batch fetch failed, falling back to individual fetch`);
+            // Fallback to old method
+            enqueueTokens(tokensToFetch);
+            return;
+        }
+        
+        const data = await resp.json();
+        console.log(`✅ Batch complete in ${batchDuration}ms`);
+        
+        // Add available videos to queue
+        let addedCount = 0;
+        for (const token of tokensToFetch) {
+            const tokenLower = String(token).toLowerCase();
+            const videoUrl = data.videos?.[token];
+            
+            if (videoUrl) {
+                videoQueue.push({ 
+                    token: tokenLower, 
+                    url: `${backendUrl}${videoUrl}` 
+                });
+                queuedTokens[tokenLower] = (queuedTokens[tokenLower] || 0) + 1;
+                recentTokens.set(tokenLower, now);
+                addedCount++;
+                console.log(`✅ Added "${tokenLower}" to queue (pre-cached)`);
+            } else {
+                console.log(`⚠️ No video available for "${tokenLower}"`);
+            }
+        }
+        
+        console.log(`📊 Batch Summary: ${addedCount}/${tokensToFetch.length} videos queued`);
+        updateCaption();
+        playNextFromQueue();
+        
+    } catch (e) {
+        console.error(`❌ Batch fetch error: ${e.message}`);
+        // Fallback to old method
+        enqueueTokens(tokensToFetch);
+    }
+}
+
+// Add tokens to the queue (fallback method)
 function enqueueTokens(tokens) {
     let addedCount = 0;
     let skippedCount = 0;
