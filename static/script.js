@@ -1029,8 +1029,17 @@ async function composeReverseVideo() {
     const input = document.getElementById('glossTokensInput');
     const videoEl = document.getElementById('reverseVideo');
     const metaEl = document.getElementById('reverseMeta');
+    
+    console.log('🔍 Elements found:', {
+        input: !!input,
+        videoEl: !!videoEl,
+        videoElTag: videoEl?.tagName,
+        videoElId: videoEl?.id
+    });
+    
     if (!input || !videoEl) {
         console.error('❌ Missing input or video element', { input, videoEl });
+        showTemporaryMessage('Video element not found on page', 'warning');
         return;
     }
     const sentence = (input.value || '').trim();
@@ -1048,6 +1057,8 @@ async function composeReverseVideo() {
             body: JSON.stringify({ text: sentence })
         });
         console.log('📡 Response status:', resp.status);
+        console.log('📡 Response headers:', resp.headers);
+        
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
             console.error('❌ Server error:', err);
@@ -1055,22 +1066,96 @@ async function composeReverseVideo() {
             const prev = err.available_tokens_preview ? `\nAvailable (sample): ${err.available_tokens_preview.join(', ')}` : '';
             throw new Error((err.error || `Server error: ${resp.status}`) + more + prev);
         }
+        
         const data = await resp.json();
-        console.log('✅ Response data:', data);
-        const url = data.video_url; // Use the direct URL returned by the backend
-        console.log('🎥 Video URL:', url);
+        console.log('✅ Response data received');
+        
+        // Check if we got base64 video data
+        let url;
+        if (data.video_base64) {
+            // Convert base64 to data URL
+            url = `data:video/mp4;base64,${data.video_base64}`;
+            console.log('🎥 Created data URL from base64 video');
+        } else if (data.video_url) {
+            // Fallback to URL (if backend returns URL)
+            url = data.video_url;
+            if (url.startsWith('/')) {
+                const baseUrl = window.API_BASE_URL || window.location.origin;
+                url = baseUrl + url;
+            }
+            console.log('🎥 Using video URL:', url);
+        } else {
+            throw new Error('No video data received from server');
+        }
         
         // Hide placeholder and show video
         const placeholder = document.getElementById('videoPlaceholder');
-        if (placeholder) placeholder.style.display = 'none';
+        if (placeholder) {
+            placeholder.style.display = 'none';
+            placeholder.style.visibility = 'hidden';
+            placeholder.style.opacity = '0';
+            placeholder.style.pointerEvents = 'none';
+            console.log('✅ Placeholder hidden');
+        } else {
+            console.warn('⚠️ Placeholder element not found');
+        }
         
+        // Reset video element to clear any previous state
+        videoEl.pause();
+        videoEl.removeAttribute('src');
+        videoEl.load();
+        
+        // Set the video source with full URL
         videoEl.src = url;
         videoEl.style.display = 'block';
-        console.log('🔄 Loading video...');
-        videoEl.load();
-        videoEl.play().catch((playErr) => {
-            console.error('▶️ Play error:', playErr);
+        videoEl.style.visibility = 'visible';
+        videoEl.style.opacity = '1';
+        console.log('✅ Video element display set to block');
+        console.log('🔄 Video source set:', videoEl.src);
+        
+        // Ensure video container is visible
+        const videoContainer = videoEl.closest('.video-container');
+        if (videoContainer) {
+            videoContainer.style.display = 'flex';
+            console.log('✅ Video container display ensured');
+        }
+        
+        // Add event listeners for debugging
+        videoEl.addEventListener('loadstart', () => console.log('📹 Video load started'));
+        videoEl.addEventListener('loadedmetadata', () => {
+            console.log('✅ Video metadata loaded');
+            console.log('📊 Video duration:', videoEl.duration);
+            console.log('📊 Video dimensions:', videoEl.videoWidth, 'x', videoEl.videoHeight);
         });
+        videoEl.addEventListener('loadeddata', () => console.log('✅ Video data loaded'));
+        videoEl.addEventListener('canplay', () => console.log('✅ Video can play'));
+        videoEl.addEventListener('error', (e) => {
+            console.error('❌ Video error event:', e);
+            console.error('❌ Video error code:', videoEl.error?.code);
+            console.error('❌ Video error message:', videoEl.error?.message);
+            console.error('❌ Video network state:', videoEl.networkState);
+            console.error('❌ Video ready state:', videoEl.readyState);
+            
+            // Try to fetch the URL directly to check if it's accessible
+            fetch(url, { method: 'HEAD' })
+                .then(r => console.log('🔍 Video URL accessible, status:', r.status))
+                .catch(err => console.error('🔍 Video URL not accessible:', err));
+        });
+        
+        videoEl.load();
+        
+        // Try to play with better error handling
+        try {
+            await videoEl.play();
+            console.log('▶️ Video playing successfully');
+        } catch (playErr) {
+            console.error('▶️ Play error:', playErr);
+            console.error('▶️ Video ready state:', videoEl.readyState);
+            console.error('▶️ Video network state:', videoEl.networkState);
+            
+            // Show user-friendly error
+            showTemporaryMessage('Video generated but autoplay failed. Click play button.', 'info');
+        }
         showTemporaryMessage('Reverse video ready', 'success');
     } catch (e) {
         console.error('composeReverseVideo error:', e);
