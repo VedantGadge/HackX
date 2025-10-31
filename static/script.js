@@ -1067,26 +1067,13 @@ async function composeReverseVideo() {
             throw new Error((err.error || `Server error: ${resp.status}`) + more + prev);
         }
         
-        const data = await resp.json();
-        console.log('✅ Response data received');
+        // Backend returns video file directly (not JSON) - same as /token-video endpoint
+        const videoBlob = await resp.blob();
+        console.log('✅ Received video blob:', videoBlob.size, 'bytes');
         
-        // Check if we got base64 video data
-        let url;
-        if (data.video_base64) {
-            // Convert base64 to data URL
-            url = `data:video/mp4;base64,${data.video_base64}`;
-            console.log('🎥 Created data URL from base64 video');
-        } else if (data.video_url) {
-            // Fallback to URL (if backend returns URL)
-            url = data.video_url;
-            if (url.startsWith('/')) {
-                const baseUrl = window.API_BASE_URL || window.location.origin;
-                url = baseUrl + url;
-            }
-            console.log('🎥 Using video URL:', url);
-        } else {
-            throw new Error('No video data received from server');
-        }
+        // Create object URL from blob (browser will handle this perfectly)
+        const url = URL.createObjectURL(videoBlob);
+        console.log('🎥 Created object URL:', url);
         
         // Hide placeholder and show video
         const placeholder = document.getElementById('videoPlaceholder');
@@ -1102,16 +1089,23 @@ async function composeReverseVideo() {
         
         // Reset video element to clear any previous state
         videoEl.pause();
+        
+        // Revoke previous blob URL to prevent memory leaks
+        if (videoEl.src && videoEl.src.startsWith('blob:')) {
+            URL.revokeObjectURL(videoEl.src);
+            console.log('🗑️ Revoked previous blob URL');
+        }
+        
         videoEl.removeAttribute('src');
         videoEl.load();
         
-        // Set the video source with full URL
+        // Set the new blob URL
         videoEl.src = url;
         videoEl.style.display = 'block';
         videoEl.style.visibility = 'visible';
         videoEl.style.opacity = '1';
         console.log('✅ Video element display set to block');
-        console.log('🔄 Video source set:', videoEl.src);
+        console.log('🔄 Video loaded from blob URL');
         
         // Ensure video container is visible
         const videoContainer = videoEl.closest('.video-container');
