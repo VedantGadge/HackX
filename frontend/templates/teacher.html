@@ -6,10 +6,6 @@
     <title>Intellify - Teacher Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-        // API Configuration - Production
-        window.API_BASE_URL = 'https://lamaq-signlink-hackx.hf.space';
-    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -288,17 +284,13 @@
         <!-- Header -->
         <div class="header">
             <div class="header-title">
-                <h1>🎓 Classroom Session</h1>
+                <h1>Classroom Session</h1>
                 <p>Real-time sign language broadcasting</p>
             </div>
             <div class="header-stats">
                 <div class="stat">
                     <div class="stat-label">ROOM CODE</div>
                     <div class="stat-value" id="roomCodeDisplay">ABC123</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-label">STUDENTS</div>
-                    <div class="stat-value" id="studentCount">0</div>
                 </div>
             </div>
             <button class="btn-end" onclick="endSession()">
@@ -370,53 +362,30 @@
         </div>
     </div>
 
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-        // API Configuration
-        const API_BASE_URL = window.API_BASE_URL || 'http://localhost:8000';
-        const WS_BASE_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://');
-        
         const ROOM_ID = new URLSearchParams(window.location.search).get('room_id') || 
                         Math.random().toString(36).substr(2, 6).toUpperCase();
-        
-        let socket = null;
+        const socket = io();
+
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
 
         document.getElementById('roomCodeDisplay').textContent = ROOM_ID;
 
-        // Connect to WebSocket
-        function connectWebSocket() {
-            socket = new WebSocket(`${WS_BASE_URL}/ws/classroom/${ROOM_ID}/teacher`);
-            
-            socket.onopen = () => {
-                console.log('✓ Connected to classroom');
-            };
-            
-            socket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                console.log('Received:', data);
-                
-                if (data.type === 'student_joined') {
-                    document.getElementById('studentCount').textContent = data.count;
-                } else if (data.type === 'caption_received') {
-                    updateCaption(data.text, data.timestamp);
-                } else if (data.type === 'error') {
-                    alert('Error: ' + data.message);
-                    updateStatus('broadcast', '✗ Error', 'ready');
-                }
-            };
-            
-            socket.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
-            
-            socket.onclose = () => {
-                console.log('Disconnected from classroom');
-            };
-        }
-        
-        connectWebSocket();
+        socket.on('connect', () => {
+            console.log('✓ Connected');
+            socket.emit('teacher_join', { room_id: ROOM_ID });
+        });
+
+        socket.on('student_joined', (data) => {
+            document.getElementById('studentCount').textContent = data.count;
+        });
+
+        socket.on('caption_received', (data) => {
+            updateCaption(data.text, data.timestamp);
+        });
 
         async function toggleMicrophone() {
             if (!isRecording) {
@@ -436,11 +405,10 @@
                         reader.onload = (e) => {
                             const audioBase64 = e.target.result.split(',')[1];
                             updateStatus('stt', 'Processing...', 'processing');
-                            socket.send(JSON.stringify({
-                                type: 'send_speech',
+                            socket.emit('send_speech', {
                                 room_id: ROOM_ID,
                                 audio: audioBase64
-                            }));
+                            });
                         };
 
                         reader.readAsDataURL(audioBlob);
@@ -494,9 +462,7 @@
 
         function endSession() {
             if (confirm('End classroom session? All students will be disconnected.')) {
-                if (socket) {
-                    socket.close();
-                }
+                socket.disconnect();
                 window.location.href = '/classroom';
             }
         }

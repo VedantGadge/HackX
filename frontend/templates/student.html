@@ -6,10 +6,6 @@
     <title>Intellify - Student Learning</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-        // API Configuration - Production
-        window.API_BASE_URL = 'https://lamaq-signlink-hackx.hf.space';
-    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -422,13 +418,10 @@
         </div>
     </div>
 
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-        // API Configuration
-        const API_BASE_URL = window.API_BASE_URL || 'http://localhost:8000';
-        const WS_BASE_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://');
-        
         const ROOM_ID = new URLSearchParams(window.location.search).get('room_id') || 'Unknown';
-        let socket = null;
+        const socket = io();
 
         let transcriptItems = [];
         let videosCount = 0;
@@ -438,59 +431,34 @@
         const videoPlayer = document.getElementById('videoPlayer');
         const videoPlaceholder = document.getElementById('videoPlaceholder');
 
-        // Connect to WebSocket
-        function connectWebSocket() {
-            socket = new WebSocket(`${WS_BASE_URL}/ws/classroom/${ROOM_ID}/student`);
-            
-            socket.onopen = () => {
-                console.log('✓ Connected to classroom');
-                document.getElementById('connectionStatus').textContent = 'Connected';
-                document.querySelector('.status-dot').style.background = '#10b981';
-                startSessionTimer();
-            };
-            
-            socket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                console.log('Received:', data);
-                
-                if (data.type === 'video_broadcast') {
-                    // Set video source with full URL
-                    videoPlayer.src = `${API_BASE_URL}${data.video_url}`;
-                    videoPlayer.style.display = 'block';
-                    videoPlaceholder.style.display = 'none';
+        socket.on('connect', () => {
+            console.log('✓ Connected');
+            socket.emit('student_join', { room_id: ROOM_ID });
+            startSessionTimer();
+        });
 
-                    document.getElementById('playBtn').disabled = false;
-                    document.getElementById('pauseBtn').disabled = false;
-                    document.getElementById('replayBtn').disabled = false;
+        socket.on('video_broadcast', (data) => {
+            videoPlayer.src = data.video_url;
+            videoPlayer.style.display = 'block';
+            videoPlaceholder.style.display = 'none';
 
-                    videoPlayer.autoplay = true;
-                    videoPlayer.play().catch(() => {});
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('replayBtn').disabled = false;
 
-                    videosCount++;
-                    document.getElementById('videosReceived').textContent = videosCount;
+            videoPlayer.autoplay = true;
+            videoPlayer.play().catch(() => {});
 
-                    const text = data.tokens ? data.tokens.join(' ') : (data.text || 'Video');
-                    const words = data.tokens ? data.tokens.length : 0;
-                    totalWords += words;
-                    document.getElementById('totalWords').textContent = totalWords;
+            videosCount++;
+            document.getElementById('videosReceived').textContent = videosCount;
 
-                    addTranscriptItem(text);
-                    showNotification(`Received: "${text}"`);
-                }
-            };
-            
-            socket.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
-            
-            socket.onclose = () => {
-                console.log('Disconnected from classroom');
-                document.getElementById('connectionStatus').textContent = 'Disconnected';
-                document.querySelector('.status-dot').style.background = '#ef4444';
-            };
-        }
-        
-        connectWebSocket();
+            const text = data.gloss_tokens.join(' ');
+            totalWords += data.gloss_tokens.length;
+            document.getElementById('totalWords').textContent = totalWords;
+
+            addTranscriptItem(text);
+            showNotification(`Received: "${text}"`);
+        });
 
         function playVideo() {
             videoPlayer.play().catch(() => {});
@@ -581,12 +549,15 @@
 
         function leaveClass() {
             if (confirm('Leave classroom?')) {
-                if (socket) {
-                    socket.close();
-                }
+                socket.disconnect();
                 window.location.href = '/classroom';
             }
         }
+
+        socket.on('disconnect', () => {
+            document.getElementById('connectionStatus').textContent = 'Disconnected';
+            document.querySelector('.status-dot').style.background = '#ef4444';
+        });
     </script>
 </body>
 </html>
