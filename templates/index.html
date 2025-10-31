@@ -41,16 +41,15 @@
         <div class="nav-container">
             <div class="nav-brand">
                 <i class="fas fa-hands nav-icon"></i>
-                <span class="brand-text">Intellify</span>
+                <span class="brand-text">Signlink</span>
             </div>
             <div class="nav-links">
                 <a href="#demo" class="nav-link">Demo</a>
-                <a href="/learn" class="nav-link">Learn</a>
                 <a href="#features" class="nav-link">Features</a>
-                <a href="#about" class="nav-link">About</a>
-                <a href="#yt-sync" class="nav-link">YouTube Sync</a>
+               
                 <a href="/classroom" class="nav-link">Classroom</a>
-                <button class="cta-button">Try It Free</button>
+                <a href="/learn" class="nav-link">Learn</a>
+                <button class="cta-button">Try It</button>
             </div>
         </div>
     </nav>
@@ -106,94 +105,6 @@
         </div>
     </section>
 
-    <!-- YouTube Sync Section -->
-    <section id="yt-sync" class="demo-section" style="padding: 80px 0; background: #0b1220; color: #e5e7eb;">
-        <div class="container">
-            <div class="section-header">
-                <h2 class="section-title" style="color:#fff;">YouTube Sync: Transcript → Real-time Reverse Video</h2>
-                <p class="section-subtitle" style="color:#93c5fd;">Paste a transcript and sync sign-language video clips while a YouTube video plays</p>
-            </div>
-
-            <div class="demo-container" style="display:flex; gap:24px; align-items:flex-start; flex-wrap: wrap;">
-                <!-- Left: YouTube Player & Reverse Video -->
-                <div class="demo-left" style="flex:1 1 420px; min-width: 360px;">
-                    <div class="camera-section" style="background: #111827; border-radius: 16px; padding: 16px; border: 1px solid #1f2937;">
-                        <div class="camera-header" style="display:flex; justify-content: space-between; align-items:center; gap: 8px; flex-wrap: wrap;">
-                            <h3 style="margin:0; color:#93c5fd;">
-                                <i class="fab fa-youtube" style="margin-right:8px; color:#ef4444;"></i>
-                                YouTube Player
-                            </h3>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <input id="ytVideoId" class="text-input" placeholder="YouTube Video ID (e.g., dQw4w9WgXcQ)" style="background:#0b1220; border:1px solid #374151; color:#e5e7eb; padding:8px 12px; border-radius:8px; width: 230px;" />
-                                <button class="control-button secondary" onclick="loadYouTubeById()" style="background:#1f2937; color:#e5e7eb; border:1px solid #374151; padding:8px 12px; border-radius:8px;">
-                                    Load
-                                </button>
-                            </div>
-                        </div>
-                        <div id="ytPlayer" style="margin-top:12px; aspect-ratio:16/9; background:#000; border-radius:8px; overflow:hidden;"></div>
-                    </div>
-
-                    <div class="translation-card" style="background: #111827; border-radius: 16px; padding: 16px; margin-top:16px; border: 1px solid #1f2937;">
-                        <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
-                            <h3 style="margin:0; color:#93c5fd;">
-                                <i class="fas fa-sign-language" style="margin-right:8px; color:#10b981;"></i>
-                                Reverse Playback
-                            </h3>
-                            <div style="display:flex; gap:8px;">
-                                <button class="control-button accent" onclick="startYTSync()" style="background:#2563eb; color:#fff; border:none; padding:8px 12px; border-radius:8px;">
-                                    Start Sync
-                                </button>
-                                <button class="control-button secondary" onclick="stopReverseSync()" style="background:#1f2937; color:#e5e7eb; border:1px solid #374151; padding:8px 12px; border-radius:8px;">
-                                    Stop
-                                </button>
-                            </div>
-                        </div>
-                        <div class="yt-stage" style="position:relative; margin-top:12px; aspect-ratio:16/9; background:#000; border-radius:8px; overflow:hidden;">
-                            <div id="ytPlayer" style="width:100%; height:100%;"></div>
-                            <!-- Bottom-right overlay with reverse translation video and captions -->
-                            <div id="reverseOverlay" style="position:absolute; right:12px; bottom:12px; width: 30%; max-width: 300px; aspect-ratio:16/9; border-radius:10px; overflow:hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); background:#000;">
-                                <video id="ytReverseVideo" playsinline muted controls style="width:100%; height:100%; display:block; background:#000;"></video>
-                                <div id="ytReverseCaption" style="position:absolute; left:0; right:0; bottom:0; padding:6px 8px; background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.0)); color:#fff; font-size: 12px; line-height:1.3; font-weight:600;">
-                                    Waiting for tokens…
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Transcript Input -->
-                <div class="demo-right" style="flex:1 1 420px; min-width: 360px;">
-                    <div class="translation-card" style="background: #111827; border-radius: 16px; padding: 16px; border: 1px solid #1f2937;">
-                        <div class="card-header">
-                            <h3 style="margin:0; color:#93c5fd;">
-                                <i class="fas fa-file-alt" style="margin-right:8px; color:#f59e0b;"></i>
-                                Transcript (JSON array)
-                            </h3>
-                        </div>
-                        <div class="translation-display" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
-                            <textarea id="ytTranscript" class="text-input" style="background:#0b1220; color:#e5e7eb; border:1px solid #374151; padding:12px; border-radius:8px; min-height:220px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
-[
-  { "start": 0.0, "end": 3.0, "text": "We are going to college" },
-  { "start": 3.0, "end": 6.0, "text": "for the exam today" }
-]
-                            </textarea>
-                            <div style="display:flex; gap:8px;">
-                                <button class="control-button secondary" onclick="formatTranscriptJSON()" style="background:#1f2937; color:#e5e7eb; border:1px solid #374151; padding:8px 12px; border-radius:8px;">
-                                    Format JSON
-                                </button>
-                                <button class="control-button secondary" onclick="loadSampleTranscript()" style="background:#1f2937; color:#e5e7eb; border:1px solid #374151; padding:8px 12px; border-radius:8px;">
-                                    Load Sample
-                                </button>
-                            </div>
-                            <p style="color:#9ca3af; font-size: 13px;">
-                                Tip: Texts must map to token clips in <code>videos/</code> (e.g., <code>we.mp4</code>, <code>go.mp4</code>, <code>college.mp4</code>). If you have an API key, tokenization uses LLM; otherwise heuristic mapping applies.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <!-- Demo Section -->
     <section id="demo" class="demo-section">

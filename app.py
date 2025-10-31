@@ -1139,6 +1139,59 @@ def serve_token_video(token: str):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/tokenize-text', methods=['POST'])
+def tokenize_text():
+    """Return gloss-like tokens for a given text without composing a video.
+
+    Request JSON: { text: string }
+    Response 200: { tokens: string[], available: string[] }
+    """
+    try:
+        data = request.get_json(force=True)
+        text = (data.get('text') or '').strip()
+        if not text:
+            return jsonify({'error': 'Missing text'}), 400
+
+        available = _list_available_video_tokens()
+
+        # 1) Try full gloss via LLM (not filtered), else heuristic
+        tokens_all = []
+        try:
+            from revtrans import text_to_gloss
+            gloss = text_to_gloss(text)  # e.g. "I ALWAYS ADMIRE ..."
+            tokens_all = [w.lower() for w in str(gloss).split() if w]
+        except Exception:
+            tokens_all = _text_to_gloss_tokens(text)  # already heuristic-filtered
+
+        # If the above ended up already filtered, ensure we also have a raw heuristic split
+        if not tokens_all:
+            tokens_all = [w.lower() for w in text.split() if w]
+
+        # 2) Map tokens to available ones (keep missing list for UI/debug)
+        tokens_mapped, missing = _map_tokens_to_available(tokens_all, available)
+
+        # 2.1) Collapse consecutive duplicates in mapped tokens to avoid repeated clips from overlapping captions
+        def _collapse_consecutive_dups(seq):
+            out = []
+            prev = None
+            for x in seq:
+                if x and x != prev:
+                    out.append(x)
+                prev = x
+            return out
+        tokens_mapped = _collapse_consecutive_dups(tokens_mapped)
+
+        # Back-compat: keep 'tokens' as mapped so existing client continues to work
+        return jsonify({
+            'tokens': tokens_mapped,
+            'tokens_all': tokens_all,
+            'missing': missing,
+            'available': available
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 
 @app.route('/reverse-translate-segment', methods=['POST'])
 def reverse_translate_segment():
